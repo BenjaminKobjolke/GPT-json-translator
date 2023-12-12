@@ -13,6 +13,7 @@ openai.api_key = API_KEY
 languages = ["it-IT", "en-US",
              "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", "ru-RU",    "pl-PL", "tr-TR", "zh-CN", "ja-JP", "ko-KR", "ar-AR", "hi-IN", "sv-SE",    "no-NO", "fi-FI", "da-DK", "cs-CZ",
              "sk-SK", "hu-HU", "ro-RO", "uk-UA",    "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT",    "he-IL", "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN",    "th-TH", "vi-VN"]
+#languages = ["de-DE"]
 
 
 # Prompt user to enter the path to the input JSON file
@@ -31,12 +32,13 @@ with open(input_path, "r") as f:
 def translate(target_language, rows_to_translate):
     print(f"Translating to {target_language}...")
     # Call OpenAI API to translate text
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+    completion = openai.chat.completions.create(
+        model="gpt-4-1106-preview",
+        response_format={ "type": "json_object" },
         messages=[
             {
                 "role": "system",
-                "content": "You are TranslatorGpt, a powerful language model designed for seamless translation of text across multiple languages. You have been trained on a vast corpus of linguistic data and possess a deep understanding of grammar, syntax, and vocabulary of every language in the world. You excel at generating structured data in JSON format and follow this rules: you never translate the key, you always use the double quotes to surround key and valye, you always escape single quotes and backslashes contained in the value, you never write a comma at the end of the last row in the file.",
+                "content": "You are TranslatorGpt, a powerful language model designed for seamless translation of text across multiple languages. You have been trained on a vast corpus of linguistic data and possess a deep understanding of grammar, syntax, and vocabulary of every language in the world.",
             },
             {
                 "role": "user",
@@ -44,14 +46,14 @@ def translate(target_language, rows_to_translate):
             },
         ],
     )
-
-    translated_json_str = completion["choices"][0]["message"]["content"]
+    print(completion.choices[0].message.content)
+    translated_json_str = completion.choices[0].message.content
     # only double quotes are allowed in JSON, so replace single quotes with double quotes
-    translated_json_str = translated_json_str.replace("'", '"')
+    #translated_json_str = translated_json_str.replace("'", '"')
     print(f"Translation to {target_language} complete.")
     # print(f"Translated JSON:\n{translated_json}\n")
     # convert the string into a json object
-    translated_json = json.loads(translated_json_str)
+    translated_json = json.loads(translated_json_str)    
     return translated_json
 
 
@@ -95,7 +97,7 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
             if existing_json:
                 output_json = {**existing_json, **translated_json}
             else:
-                output_json = json.loads(translated_json)
+                output_json = translated_json
             output_path = os.path.join(os.path.dirname(input_path), filename)
             with open(output_path, "w") as f:
                 json.dump(output_json, f, indent=2)
