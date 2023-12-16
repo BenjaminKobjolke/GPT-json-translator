@@ -65,49 +65,50 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         filename = target_language.split('-')[0]
         filename = f"{filename}.json"
         output_path = os.path.join(os.path.dirname(input_path), filename)
+        
+        existing_json = {}
         if os.path.exists(output_path):
             with open(output_path, "r") as f:
                 try:
                     existing_json = json.load(f)
                 except json.decoder.JSONDecodeError:
                     existing_json = {}
-            existing_keys = "\n".join(existing_json.keys())
-            missing_keys = set(source_json.keys()) - set(existing_json.keys())
-            
-            if missing_keys:
-                print(
-                f"Found {len(missing_keys)} missing keys for {target_language}")
-                filtered_json = {
-                    key: value for key, value in source_json.items() if key in missing_keys}
-                # print(f"Filtered JSON:\n{filtered_json}\n")
-                future_to_language[executor.submit(
-                    translate, target_language, filtered_json)] = target_language, existing_json
-        else:
-            print(
-                f"Output file not found for {target_language}. Generating a new one...")
-            future_to_language[executor.submit(
-                translate, target_language, source_json)] = target_language, {}
 
-    # Process completed translation tasks and write output files
-    for future in concurrent.futures.as_completed(future_to_language):
-        target_language, existing_json = future_to_language[future]
-        filename = target_language.split('-')[0]
-        filename = f"{filename}.json"
-        translated_json=""
-        try:
-            translated_json = future.result()
-            if existing_json:
-                output_json = {**existing_json, **translated_json}
-            else:
-                output_json = translated_json
-            output_path = os.path.join(os.path.dirname(input_path), filename)
+        # Filter out keys from existing_json that are not in source_json (en.json)
+        filtered_existing_json = {key: value for key, value in existing_json.items() if key in source_json}
+
+        # Determine keys that need translation
+        missing_keys = set(source_json.keys()) - set(filtered_existing_json.keys())
+        if missing_keys:
+            print(f"Found {len(missing_keys)} missing keys for {target_language}")
+            filtered_json = {key: value for key, value in source_json.items() if key in missing_keys}
+            future_to_language[executor.submit(translate, target_language, filtered_json)] = target_language, filtered_existing_json
+        else:
+            # If no new translations are needed, write the filtered existing translations back to the file
             with open(output_path, "w") as f:
-                json.dump(output_json, f, indent=2)
-            print(f"Output file saved as {output_path}")
-        except Exception as e:
-            print(
-                f"Error occurred while translating to {target_language}: {e}\n{translated_json}\n")
+                json.dump(filtered_existing_json, f, indent=2)
+            print(f"No new translations needed for {target_language}. Updated file saved.")
+
+# Process completed translation tasks and write output files
+for future in concurrent.futures.as_completed(future_to_language):
+    target_language, filtered_existing_json = future_to_language[future]
+    filename = target_language.split('-')[0]
+    filename = f"{filename}.json"
+    try:
+        translated_json = future.result()
+        # Combine filtered existing translations with new translations
+        output_json = {**filtered_existing_json, **translated_json}
+
+        output_path = os.path.join(os.path.dirname(input_path), filename)
+        with open(output_path, "w") as f:
+            json.dump(output_json, f, indent=2)
+        print(f"Output file saved as {output_path}")
+    except Exception as e:
+        print(f"Error occurred while translating to {target_language}: {e}")
 
 print("Translation complete.")
+
+
+
 
 # Credits: Leonardo Rignanese (twitter.com/leorigna)
