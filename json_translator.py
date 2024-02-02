@@ -13,10 +13,12 @@ openai.api_key = API_KEY
 # Set up target languages for translation
 
 languagesAll = ["it-IT", "en-US",
-             "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP", "ko-KR",
-             "ar-AR", "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ",
-             "sk-SK", "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT", "he-IL",
-             "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"]
+                "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP",
+                "ko-KR",
+                "ar-AR", "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ",
+                "sk-SK", "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT",
+                "he-IL",
+                "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"]
 languages = ["de-DE"]
 '''
 languages = ["it-IT", "en-US",
@@ -51,12 +53,23 @@ if not os.path.exists(input_path):
 
 # Load JSON file with language translations as a single string
 try:
-    with open(input_path, "r") as f:
+    with open(input_path, "r", encoding="utf-8") as f:
         source_json = json.load(f)
     # Do E_something with source_json
 except PermissionError:
     print(f"Permission denied: Unable to read the file {input_path}")
     exit()
+
+
+# Function to load overrides for a target language
+def load_overrides(language_code):
+    # get path from argument_file_path
+    path_without_file = os.path.dirname(argument_file_path)
+    overrides_path = os.path.join(path_without_file, "_overrides", f"{language_code}.json")
+    if os.path.exists(overrides_path):
+        with open(overrides_path, "r", encoding="utf-8") as file:
+            return json.load(file)
+    return {}
 
 
 # Define function to translate text for a given target language
@@ -88,56 +101,68 @@ def translate(target_lang, rows_to_translate):
     return translated_json
 
 
-# Translate the JSON string into target languages
+def filter_overrides(overrides, keys_for_translation):
+    # Create a copy of keys_for_translation to work on
+    filtered_keys = keys_for_translation.copy()
+    # Iterate through the overrides
+    for key in overrides.keys():
+        # If the key from overrides exists in keys_for_translation, remove it
+        filtered_keys.pop(key, None)
+    return filtered_keys
+
+
+# Main translation logic including loading overrides
 with concurrent.futures.ThreadPoolExecutor() as executor:
-    # Submit translation tasks to the executor
     future_to_language = {}
     for target_language in languages:
-        filename = target_language.split('-')[0]
-        filename = f"{filename}.json"
-        output_path = os.path.join(os.path.dirname(input_path), filename)
+        lang_code = target_language.split('-')[0]
+        overrides = load_overrides(lang_code)
 
+        # Apply overrides to the source JSON before translation
+        source_json_with_overrides = {**source_json, **overrides}
+
+        # Determine which keys need translation
+        existing_json_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
         existing_json = {}
-        if os.path.exists(output_path):
-            with open(output_path, "r") as f:
-                try:
-                    existing_json = json.load(f)
-                except json.decoder.JSONDecodeError:
-                    existing_json = {}
+        if os.path.exists(existing_json_path):
+            with open(existing_json_path, "r", encoding="utf-8") as f:
+                existing_json = json.load(f)
 
-        # Filter out keys from existing_json that are not in source_json (en.json)
-        filtered_existing_json = {key: value for key, value in existing_json.items() if key in source_json}
+        keys_for_translation = {key: value for key, value in source_json_with_overrides.items() if
+                                key not in existing_json}
 
-        # Determine keys that need translation
-        missing_keys = set(source_json.keys()) - set(filtered_existing_json.keys())
-        if missing_keys:
-            print(f"Found {len(missing_keys)} missing keys for {target_language}")
-            filtered_json = {key: value for key, value in source_json.items() if key in missing_keys}
-            future_to_language[
-                executor.submit(translate, target_language, filtered_json)] = target_language, filtered_existing_json
+        keys_for_translation = filter_overrides(overrides, keys_for_translation)
+        '''
+        print(overrides)
+        print(keys_for_translation)        
+        exit()
+        '''
+        if keys_for_translation:
+            future_to_language[executor.submit(translate, target_language, keys_for_translation)] = (
+                target_language, existing_json, overrides)
         else:
-            # If no new translations are needed, write the filtered existing translations back to the file
-            with open(output_path, "w") as f:
-                json.dump(filtered_existing_json, f, indent=2)
-            print(f"No new translations needed for {target_language}. Updated file saved.")
+            # save at least the overrides
+            lang_code = target_language.split('-')[0]
+            output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
+            updated_json = {**overrides, **existing_json}
+            #print(updated_json)
 
-# Process completed translation tasks and write output files
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(updated_json, f, indent=2, ensure_ascii=False)
+
+# Process completed translation tasks
 for future in concurrent.futures.as_completed(future_to_language):
-    target_language, filtered_existing_json = future_to_language[future]
-    filename = target_language.split('-')[0]
-    filename = f"{filename}.json"
-    try:
-        translated_json = future.result()
-        # Combine filtered existing translations with new translations
-        output_json = {**filtered_existing_json, **translated_json}
+    target_language, existing_json, overrides = future_to_language[future]
+    translated_json = future.result()
 
-        output_path = os.path.join(os.path.dirname(input_path), filename)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(output_json, f, indent=2, ensure_ascii=False)
-        print(f"Output file saved as {output_path}")
-    except Exception as e:
-        print(f"Error occurred while translating to {target_language}: {e}")
+    # Merge translations with existing JSON and overrides, giving precedence to overrides
+    updated_json = {**existing_json, **translated_json, **overrides}
+    #print(overrides)
+    lang_code = target_language.split('-')[0]
+    output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
 
-print("Translation complete.")
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(updated_json, f, indent=2, ensure_ascii=False)
+    print(f"Output file saved as {output_path}")
 
-# Credits: Leonardo Rignanese (twitter.com/leorigna)
+print("Translation process complete.")
