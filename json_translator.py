@@ -19,11 +19,10 @@ languagesAll = ["it-IT", "en-US",
                 "sk-SK", "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT",
                 "he-IL",
                 "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"]
-languages = ["de-DE"]
-'''
+# languages = ["de-DE"]
+
 languages = ["it-IT", "en-US",
              "fr-FR", "es-ES", "de-DE"]
-'''
 
 argument_file_path = None
 
@@ -116,10 +115,8 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
     future_to_language = {}
     for target_language in languages:
         lang_code = target_language.split('-')[0]
+        print(f"Processing language: {lang_code}")
         overrides = load_overrides(lang_code)
-
-        # Apply overrides to the source JSON before translation
-        source_json_with_overrides = {**source_json, **overrides}
 
         # Determine which keys need translation
         existing_json_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
@@ -128,13 +125,14 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
             with open(existing_json_path, "r", encoding="utf-8") as f:
                 existing_json = json.load(f)
 
-        keys_for_translation = {key: value for key, value in source_json_with_overrides.items() if
+        keys_for_translation = {key: value for key, value in source_json.items() if
                                 key not in existing_json}
 
         keys_for_translation = filter_overrides(overrides, keys_for_translation)
+
         '''
         print(overrides)
-        print(keys_for_translation)        
+        print(keys_for_translation)
         exit()
         '''
         if keys_for_translation:
@@ -145,7 +143,7 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
             lang_code = target_language.split('-')[0]
             output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
             updated_json = {**overrides, **existing_json}
-            #print(updated_json)
+            # print(updated_json)
 
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(updated_json, f, indent=2, ensure_ascii=False)
@@ -157,7 +155,7 @@ for future in concurrent.futures.as_completed(future_to_language):
 
     # Merge translations with existing JSON and overrides, giving precedence to overrides
     updated_json = {**existing_json, **translated_json, **overrides}
-    #print(overrides)
+    # print(overrides)
     lang_code = target_language.split('-')[0]
     output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
 
