@@ -154,3 +154,4 @@ cython_debug/
 /locales
 /config.py
 /start_json_translator_cmdai.bat
+/start_json_translator_summera_ai.bat
