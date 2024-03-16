@@ -12,17 +12,24 @@ openai.api_key = API_KEY
 
 # Set up target languages for translation
 
-languagesAll = ["it-IT", "en-US",
+languagesAll = ["it-IT", 
                 "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP",
                 "ko-KR",
                 "ar-AR", "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ",
                 "sk-SK", "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT",
                 "he-IL",
                 "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"]
-# languages = ["de-DE"]
 
-languages = ["it-IT", "en-US",
-             "fr-FR", "es-ES", "de-DE"]
+
+languages = ["it-IT", 
+                "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP",
+                "ko-KR",
+                "ar-AR", "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ",
+                "sk-SK", "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", "et-EE", "lv-LV", "lt-LT",
+                "he-IL",
+                "fa-IR", "ur-PK", "bn-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"]
+
+
 
 argument_file_path = None
 
