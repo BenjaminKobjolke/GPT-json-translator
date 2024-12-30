@@ -61,9 +61,16 @@ if not os.path.exists(input_path):
 try:
     with open(input_path, "r", encoding="utf-8") as f:
         source_json = json.load(f)
-    # Do E_something with source_json
 except PermissionError:
     print(f"Permission denied: Unable to read the file {input_path}")
+    exit()
+except json.JSONDecodeError as e:
+    print(f"Error parsing source JSON file {input_path}:")
+    print(f"Error details: {str(e)}")
+    exit()
+except IOError as e:
+    print(f"Error reading source file {input_path}:")
+    print(f"Error details: {str(e)}")
     exit()
 
 
@@ -73,37 +80,55 @@ def load_overrides(language_code):
     path_without_file = os.path.dirname(argument_file_path)
     overrides_path = os.path.join(path_without_file, "_overrides", f"{language_code}.json")
     if os.path.exists(overrides_path):
-        with open(overrides_path, "r", encoding="utf-8") as file:
-            return json.load(file)
+        try:
+            with open(overrides_path, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Error loading overrides for {language_code}:")
+            print(f"Error details: {str(e)}")
+            return {}
     return {}
 
 
 # Define function to translate text for a given target language
 def translate(target_lang, rows_to_translate):
     print(f"Translating to {target_lang}...")
-    # Call OpenAI API to translate text
-    completion = openai.chat.completions.create(
-        model="gpt-4-1106-preview",
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": "You are TranslatorGpt, a powerful language model designed for seamless translation of text across multiple languages. You have been trained on a vast corpus of linguistic data and possess a deep understanding of grammar, syntax, and vocabulary of every language in the world. You only translate json values, not json keys.",
-            },
-            {
-                "role": "user",
-                "content": f"Translate the following JSON to {target_lang}:\n\n{rows_to_translate}\n",
-            },
-        ],
-    )
-    print(completion.choices[0].message.content)
-    translated_json_str = completion.choices[0].message.content
+    try:
+        # Call OpenAI API to translate text
+        completion = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            response_format={"type": "json_object"},
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are TranslatorGpt, a powerful language model designed for seamless translation of text across multiple languages. You have been trained on a vast corpus of linguistic data and possess a deep understanding of grammar, syntax, and vocabulary of every language in the world. You only translate json values, not json keys.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Translate the following JSON to {target_lang}:\n\n{rows_to_translate}\n",
+                },
+            ],
+        )
+        print(completion.choices[0].message.content)
+        translated_json_str = completion.choices[0].message.content
+    except Exception as e:
+        print(f"Error calling OpenAI API for {target_lang}:")
+        print(f"Error details: {str(e)}")
+        return {}
     # only double quotes are allowed in JSON, so replace single quotes with double quotes
     # translated_json_str = translated_json_str.replace("'", '"')
     print(f"Translation to {target_lang} complete.")
     # print(f"Translated JSON:\n{translated_json}\n")
     # convert the string into a json object
-    translated_json = json.loads(translated_json_str)
+    try:
+        translated_json = json.loads(translated_json_str)
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON response for {target_lang}:")
+        print(f"Error details: {str(e)}")
+        print("Problematic JSON string:")
+        print(translated_json_str)
+        # Return empty dict to allow process to continue for other languages
+        return {}
     return translated_json
 
 
@@ -129,8 +154,13 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         existing_json_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
         existing_json = {}
         if os.path.exists(existing_json_path):
-            with open(existing_json_path, "r", encoding="utf-8") as f:
-                existing_json = json.load(f)
+            try:
+                with open(existing_json_path, "r", encoding="utf-8") as f:
+                    existing_json = json.load(f)
+            except (IOError, json.JSONDecodeError) as e:
+                print(f"Error loading existing translations for {lang_code}:")
+                print(f"Error details: {str(e)}")
+                existing_json = {}
 
         keys_for_translation = {key: value for key, value in source_json.items() if
                                 key not in existing_json}
@@ -152,22 +182,34 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
             updated_json = {**overrides, **existing_json}
             # print(updated_json)
 
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(updated_json, f, indent=2, ensure_ascii=False)
+            try:
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump(updated_json, f, indent=2, ensure_ascii=False)
+                print(f"Output file saved as {output_path}")
+            except IOError as e:
+                print(f"Error saving file for {target_language}:")
+                print(f"Error details: {str(e)}")
 
-# Process completed translation tasks
+    # Process completed translation tasks
 for future in concurrent.futures.as_completed(future_to_language):
     target_language, existing_json, overrides = future_to_language[future]
-    translated_json = future.result()
+    try:
+        translated_json = future.result()
 
-    # Merge translations with existing JSON and overrides, giving precedence to overrides
-    updated_json = {**existing_json, **translated_json, **overrides}
-    # print(overrides)
-    lang_code = target_language.split('-')[0]
-    output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
+        # Merge translations with existing JSON and overrides, giving precedence to overrides
+        updated_json = {**existing_json, **translated_json, **overrides}
+        lang_code = target_language.split('-')[0]
+        output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(updated_json, f, indent=2, ensure_ascii=False)
-    print(f"Output file saved as {output_path}")
+        try:
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(updated_json, f, indent=2, ensure_ascii=False)
+            print(f"Output file saved as {output_path}")
+        except IOError as e:
+            print(f"Error saving translation file for {target_language}:")
+            print(f"Error details: {str(e)}")
+    except Exception as e:
+        print(f"Error processing translation for {target_language}:")
+        print(f"Error details: {str(e)}")
 
 print("Translation process complete.")
