@@ -35,12 +35,19 @@ GPT JSON Translator is a Python script that automates the translation of JSON fi
     pip install -r requirements.txt
     ```
 
-3. Create a `config.py` file with your OpenAI API key:
-    ```python
-    API_KEY = "your-openai-api-key"
-    SOURCE_PATH = "./locales/en.json"  # Default source file path (optional)
-    MODEL = "gpt-4o-mini"              # OpenAI model to use (optional, defaults to gpt-4o-mini)
+3. Create a `settings.ini` file with your configuration:
+
+    ```ini
+    [General]
+    api_key = your-openai-api-key
+    source_path = ./locales/en.json
+    model = gpt-4o-mini
+
+    [Languages]
+    languages = it-IT, fr-FR, es-ES, de-DE
     ```
+
+    A template file `settings_example.ini` is provided for reference.
 
 ## Usage
 
@@ -52,7 +59,7 @@ Run the script with a path to your source JSON file:
 python json_translator.py path/to/your/source.json
 ```
 
-If no path is provided, the script will use the default path specified in `config.py` or prompt you to enter a path.
+If no path is provided, the script will use the default path specified in `settings.ini` or prompt you to enter a path.
 
 ### Directory Structure
 
@@ -111,7 +118,8 @@ The project is organized into a modular structure:
 ```
 GPT-json-translator/
 ├── json_translator.py        # Main entry point script
-├── config.py                 # Configuration file
+├── settings.ini              # Configuration file
+├── settings_example.ini      # Example configuration template
 ├── src/                      # Source code directory
 │   ├── __init__.py           # Package initialization
 │   ├── main.py               # Main entry point
@@ -179,27 +187,27 @@ The script supports translation to the following languages:
 
 ## Advanced Configuration
 
-You can customize the behavior by modifying the following settings in your `config.py` file:
+You can customize the behavior by modifying the following settings in your `settings.ini` file:
 
 ### Target Languages
 
-```python
-LANGUAGES = [
-    "it-IT", "fr-FR", "es-ES", "de-DE"
-    # Add or remove languages as needed
-]
+In the `[Languages]` section, specify the languages you want to translate to:
+
+```ini
+[Languages]
+languages = it-IT, fr-FR, es-ES, de-DE
 ```
 
 ### OpenAI Model
 
-You can specify which OpenAI model to use for translations:
+In the `[General]` section, specify which OpenAI model to use for translations:
 
-```python
-MODEL = "gpt-4o-mini"  # Default
-# Other options: "gpt-4o", "gpt-4", "gpt-3.5-turbo", etc.
+```ini
+[General]
+model = gpt-4o-mini
 ```
 
-Different models offer different trade-offs between translation quality, speed, and cost. The default is `gpt-4o-mini`, which provides a good balance of quality and performance.
+Other options include "gpt-4o", "gpt-4", "gpt-3.5-turbo", etc. Different models offer different trade-offs between translation quality, speed, and cost. The default is `gpt-4o-mini`, which provides a good balance of quality and performance.
 
 ## License
 
