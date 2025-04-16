@@ -124,7 +124,8 @@ def run_translation() -> None:
     
     # Create translation service
     translation_service = TranslationService(
-        api_key=config["api_key"]
+        api_key=config["api_key"],
+        model=config["model"]
     )
     
     # Process translations concurrently

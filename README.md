@@ -39,6 +39,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON fi
     ```python
     API_KEY = "your-openai-api-key"
     SOURCE_PATH = "./locales/en.json"  # Default source file path (optional)
+    MODEL = "gpt-4o-mini"              # OpenAI model to use (optional, defaults to gpt-4o-mini)
     ```
 
 ## Usage
@@ -178,7 +179,9 @@ The script supports translation to the following languages:
 
 ## Advanced Configuration
 
-You can modify the list of target languages by editing the `LANGUAGES` variable in your `config.py` file:
+You can customize the behavior by modifying the following settings in your `config.py` file:
+
+### Target Languages
 
 ```python
 LANGUAGES = [
@@ -186,6 +189,17 @@ LANGUAGES = [
     # Add or remove languages as needed
 ]
 ```
+
+### OpenAI Model
+
+You can specify which OpenAI model to use for translations:
+
+```python
+MODEL = "gpt-4o-mini"  # Default
+# Other options: "gpt-4o", "gpt-4", "gpt-3.5-turbo", etc.
+```
+
+Different models offer different trade-offs between translation quality, speed, and cost. The default is `gpt-4o-mini`, which provides a good balance of quality and performance.
 
 ## License
 

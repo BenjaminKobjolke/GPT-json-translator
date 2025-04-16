@@ -16,6 +16,7 @@ class ConfigManager:
         """Initialize the configuration manager."""
         self.api_key: Optional[str] = None
         self.source_path: Optional[str] = None
+        self.model: str = "gpt-4o-mini"  # Default model
         self.languages: List[str] = []
         self._load_config()
     
@@ -42,6 +43,9 @@ class ConfigManager:
                     
                     if hasattr(config, "SOURCE_PATH"):
                         self.source_path = config.SOURCE_PATH
+                    
+                    if hasattr(config, "MODEL"):
+                        self.model = config.MODEL
                     
                     if hasattr(config, "LANGUAGES"):
                         self.languages = config.LANGUAGES
@@ -86,5 +90,6 @@ class ConfigManager:
         return {
             "api_key": self.api_key,
             "source_path": self.source_path,
+            "model": self.model,
             "languages": self.languages
         }
