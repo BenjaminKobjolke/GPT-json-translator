@@ -103,6 +103,34 @@ Example (`_overrides/de.json`):
 }
 ```
 
+## Project Structure
+
+The project is organized into a modular structure:
+
+```
+GPT-json-translator/
+├── json_translator.py        # Main entry point script
+├── config.py                 # Configuration file
+├── src/                      # Source code directory
+│   ├── __init__.py           # Package initialization
+│   ├── main.py               # Main entry point
+│   ├── config.py             # Configuration manager
+│   ├── translator.py         # Translation service
+│   ├── file_handler.py       # File I/O operations
+│   ├── models/               # Data models
+│   │   ├── __init__.py
+│   │   └── translation_data.py
+│   └── utils/                # Utility functions
+│       ├── __init__.py
+│       └── helpers.py
+├── locales/                  # Translation files directory
+│   ├── en.json               # Source file (English)
+│   ├── de.json               # German translation
+│   └── _overrides/           # Translation overrides
+│       └── de.json           # German overrides
+└── requirements.txt          # Dependencies
+```
+
 ## Supported Languages
 
 The script supports translation to the following languages:
@@ -150,7 +178,14 @@ The script supports translation to the following languages:
 
 ## Advanced Configuration
 
-You can modify the list of target languages in the script by editing the `languages` variable.
+You can modify the list of target languages by editing the `LANGUAGES` variable in your `config.py` file:
+
+```python
+LANGUAGES = [
+    "it-IT", "fr-FR", "es-ES", "de-DE"
+    # Add or remove languages as needed
+]
+```
 
 ## License
 
@@ -159,3 +194,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Credits
 
 Original code by Leonardo Rignanese (twitter.com/leorigna)
+Refactored structure by [Your Name]
