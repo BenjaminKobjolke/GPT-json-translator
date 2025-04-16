@@ -90,9 +90,27 @@ def load_overrides(language_code):
     return {}
 
 
+# Function to extract hints from the source JSON
+def extract_hints(json_data):
+    hints = {}
+    for key, value in list(json_data.items()):
+        if key.startswith('_') and key.endswith('_'):
+            hints[key] = value
+    return hints
+
+
 # Define function to translate text for a given target language
-def translate(target_lang, rows_to_translate):
+def translate(target_lang, rows_to_translate, hints=None):
     print(f"Translating to {target_lang}...")
+    
+    # Create a hints string if any hints exist
+    hints_text = ""
+    if hints and len(hints) > 0:
+        hints_text = "Translation hints:\n"
+        for key, value in hints.items():
+            hints_text += f"- {value}\n"
+        hints_text += "\n"
+    
     try:
         # Call OpenAI API to translate text
         completion = openai.chat.completions.create(
@@ -105,7 +123,7 @@ def translate(target_lang, rows_to_translate):
                 },
                 {
                     "role": "user",
-                    "content": f"Translate the following JSON to {target_lang}:\n\n{rows_to_translate}\n",
+                    "content": f"{hints_text}Translate the following JSON to {target_lang}:\n\n{rows_to_translate}\n",
                 },
             ],
         )
@@ -142,9 +160,28 @@ def filter_overrides(overrides, keys_for_translation):
     return filtered_keys
 
 
+# Function to filter out hint keys (keys that start and end with "_")
+def filter_hint_keys(json_data):
+    # Create a copy of the json_data to work on
+    filtered_data = json_data.copy()
+    # Remove keys that start and end with "_"
+    for key in list(filtered_data.keys()):
+        if key.startswith('_') and key.endswith('_'):
+            filtered_data.pop(key, None)
+    return filtered_data
+
+
 # Main translation logic including loading overrides
 with concurrent.futures.ThreadPoolExecutor() as executor:
     future_to_language = {}
+    
+    # Extract hints from source JSON
+    hints = extract_hints(source_json)
+    if hints:
+        print(f"Found {len(hints)} translation hints:")
+        for key, value in hints.items():
+            print(f"  - {key}: {value}")
+    
     for target_language in languages:
         lang_code = target_language.split('-')[0]
         print(f"Processing language: {lang_code}")
@@ -162,8 +199,9 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
                 print(f"Error details: {str(e)}")
                 existing_json = {}
 
+        # Get keys for translation, excluding hint keys
         keys_for_translation = {key: value for key, value in source_json.items() if
-                                key not in existing_json}
+                                key not in existing_json and not (key.startswith('_') and key.endswith('_'))}
 
         keys_for_translation = filter_overrides(overrides, keys_for_translation)
 
@@ -173,7 +211,7 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         exit()
         '''
         if keys_for_translation:
-            future_to_language[executor.submit(translate, target_language, keys_for_translation)] = (
+            future_to_language[executor.submit(translate, target_language, keys_for_translation, hints)] = (
                 target_language, existing_json, overrides)
         else:
             # save at least the overrides
@@ -197,6 +235,7 @@ for future in concurrent.futures.as_completed(future_to_language):
         translated_json = future.result()
 
         # Merge translations with existing JSON and overrides, giving precedence to overrides
+        # Don't include hint keys in the final output
         updated_json = {**existing_json, **translated_json, **overrides}
         lang_code = target_language.split('-')[0]
         output_path = os.path.join(os.path.dirname(argument_file_path), f"{lang_code}.json")
