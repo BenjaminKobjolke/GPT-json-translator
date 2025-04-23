@@ -1,7 +1,7 @@
 """
 Data models for the JSON Translator.
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Literal
 
 
 class TranslationData:
@@ -11,22 +11,28 @@ class TranslationData:
     """
     
     def __init__(
-        self, 
+        self,
         source_json: Dict[str, Any],
         target_languages: List[str],
-        input_path: str
+        input_path: str,
+        file_type: Literal['json', 'arb'],
+        filename_pattern: Optional[str] = None
     ):
         """
         Initialize the TranslationData object.
-        
+
         Args:
             source_json: The source JSON content to be translated
             target_languages: List of target languages for translation
             input_path: Path to the source JSON file
+            file_type: The type of the input file ('json' or 'arb')
+            filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
         """
         self.source_json = source_json
         self.target_languages = target_languages
         self.input_path = input_path
+        self.file_type = file_type
+        self.filename_pattern = filename_pattern
         self.hints = self._extract_hints()
     
     def _extract_hints(self) -> Dict[str, str]:

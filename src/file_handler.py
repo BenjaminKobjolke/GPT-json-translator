@@ -3,7 +3,7 @@ File handling operations for the JSON Translator.
 """
 import json
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Literal
 
 from src.models.translation_data import TranslationResult
 
@@ -67,23 +67,42 @@ class FileHandler:
                 json.dump(content, f, indent=2, ensure_ascii=False)
         except IOError as e:
             raise IOError(f"Error saving file {file_path}: {str(e)}")
-    
+
     @staticmethod
-    def load_overrides(base_path: str, language_code: str) -> Dict[str, Any]:
+    def load_overrides(
+        base_path: str,
+        language_code: str,
+        file_type: Literal['json', 'arb'],
+        filename_pattern: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Load override values for a specific language.
-        
+        Load override values for a specific language, handling different file types.
+
         Args:
-            base_path: Base path where the source JSON is located
+            base_path: Base path where the source file is located
             language_code: Language code to load overrides for
-            
+            file_type: The type of the file ('json' or 'arb')
+            filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
+
         Returns:
             Dictionary of override values, or empty dict if none exist
         """
+        if file_type == 'arb' and filename_pattern:
+            # ARB uses language code directly in the pattern (e.g., app_de.arb)
+            # We need the non-parsed code here (e.g., de, not de-DE)
+            lang_for_pattern = language_code.split('-')[0]
+            override_filename = filename_pattern.format(lang=lang_for_pattern)
+        elif file_type == 'json':
+            override_filename = f"{language_code}.json"
+        else:
+            # Fallback or error for unsupported types/missing pattern
+            print(f"Warning: Cannot determine override filename for type {file_type} and pattern {filename_pattern}")
+            return {}
+
         overrides_path = os.path.join(
-            os.path.dirname(base_path), 
-            "_overrides", 
-            f"{language_code}.json"
+            os.path.dirname(base_path),
+            "_overrides",
+            override_filename
         )
         
         if os.path.exists(overrides_path):
@@ -94,22 +113,40 @@ class FileHandler:
                 print(f"Error details: {str(e)}")
                 return {}
         return {}
-    
+
     @staticmethod
-    def load_existing_translations(base_path: str, language_code: str) -> Dict[str, Any]:
+    def load_existing_translations(
+        base_path: str,
+        language_code: str,
+        file_type: Literal['json', 'arb'],
+        filename_pattern: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Load existing translations for a specific language.
-        
+        Load existing translations for a specific language, handling different file types.
+
         Args:
-            base_path: Base path where the source JSON is located
+            base_path: Base path where the source file is located
             language_code: Language code to load translations for
-            
+            file_type: The type of the file ('json' or 'arb')
+            filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
+
         Returns:
             Dictionary of existing translations, or empty dict if none exist
         """
+        if file_type == 'arb' and filename_pattern:
+            # ARB uses language code directly in the pattern (e.g., app_de.arb)
+            lang_for_pattern = language_code.split('-')[0]
+            existing_filename = filename_pattern.format(lang=lang_for_pattern)
+        elif file_type == 'json':
+            existing_filename = f"{language_code}.json"
+        else:
+            # Fallback or error
+            print(f"Warning: Cannot determine existing translation filename for type {file_type} and pattern {filename_pattern}")
+            return {}
+
         existing_path = os.path.join(
-            os.path.dirname(base_path), 
-            f"{language_code}.json"
+            os.path.dirname(base_path),
+            existing_filename
         )
         
         if os.path.exists(existing_path):
@@ -120,23 +157,53 @@ class FileHandler:
                 print(f"Error details: {str(e)}")
                 return {}
         return {}
-    
+
     @staticmethod
-    def save_translation_result(result: TranslationResult, base_path: str) -> None:
+    def save_translation_result(
+        result: TranslationResult,
+        base_path: str,
+        file_type: Literal['json', 'arb'],
+        filename_pattern: Optional[str] = None
+    ) -> None:
         """
-        Save a translation result to a file.
-        
+        Save a translation result to a file, handling different file types.
+
         Args:
             result: The TranslationResult object to save
-            base_path: Base path where the source JSON is located
+            base_path: Base path where the source file is located
+            file_type: The type of the file ('json' or 'arb')
+            filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
         """
+        if file_type == 'arb' and filename_pattern:
+            # ARB uses language code directly in the pattern (e.g., app_de.arb)
+            lang_for_pattern = result.language_code.split('-')[0]
+            output_filename = filename_pattern.format(lang=lang_for_pattern)
+        elif file_type == 'json':
+            output_filename = f"{result.language_code}.json"
+        else:
+            # Fallback or error
+            print(f"Warning: Cannot determine output filename for type {file_type} and pattern {filename_pattern}")
+            return
+
         output_path = os.path.join(
-            os.path.dirname(base_path), 
-            f"{result.language_code}.json"
+            os.path.dirname(base_path),
+            output_filename
         )
-        
+
+        content_to_save = result.get_merged_content()
+
+        # Add @@locale for ARB files
+        if file_type == 'arb':
+            # Use the simple language code (e.g., 'de') for @@locale
+            locale_code = result.language_code.split('-')[0]
+            content_to_save = {"@@locale": locale_code, **content_to_save}
+            # Ensure keys are sorted alphabetically, with @@locale first for ARB convention
+            content_to_save = dict(sorted(content_to_save.items(), key=lambda item: (item[0] != '@@locale', item[0])))
+
+
         try:
-            FileHandler.save_json_file(output_path, result.get_merged_content())
+            # Use the existing save_json_file method, as ARB is also JSON format
+            FileHandler.save_json_file(output_path, content_to_save)
             print(f"Output file saved as {output_path}")
         except IOError as e:
             print(f"Error saving translation file for {result.language_code}:")

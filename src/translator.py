@@ -2,11 +2,12 @@
 Translation service for the JSON Translator.
 """
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 
 import openai
 
-from src.models.translation_data import TranslationResult
+# Note: TranslationResult is not directly used here, consider removing if not needed elsewhere
+# from src.models.translation_data import TranslationResult
 
 
 class TranslationService:
@@ -96,27 +97,31 @@ class TranslationService:
     def filter_keys_for_translation(
         source_json: Dict[str, Any],
         existing_json: Dict[str, Any],
-        overrides: Dict[str, Any]
+        overrides: Dict[str, Any],
+        file_type: Literal['json', 'arb'] # Add file_type parameter
     ) -> Dict[str, Any]:
         """
         Filter source JSON to only include keys that need translation.
-        
+
         Args:
             source_json: Source JSON content
             existing_json: Existing translations
             overrides: Override values
-            
+            file_type: The type of the file ('json' or 'arb')
+
         Returns:
             Dictionary with only the keys that need translation
         """
-        # Start with a copy of the source JSON
-        keys_for_translation = {
-            key: value for key, value in source_json.items() 
-            if key not in existing_json and not (key.startswith('_') and key.endswith('_'))
-        }
-        
-        # Remove keys that have overrides
-        for key in overrides.keys():
-            keys_for_translation.pop(key, None)
-            
+        keys_for_translation = {}
+        for key, value in source_json.items():
+            # Skip hint keys
+            if key.startswith('_') and key.endswith('_'):
+                continue
+            # Skip @@locale for ARB files
+            if file_type == 'arb' and key == '@@locale':
+                continue
+            # Skip keys already present in existing translations or overrides
+            if key not in existing_json and key not in overrides:
+                keys_for_translation[key] = value
+
         return keys_for_translation

@@ -11,10 +11,11 @@ from src.file_handler import FileHandler
 from src.translator import TranslationService
 from src.models.translation_data import TranslationData, TranslationResult
 from src.utils.helpers import (
-    get_input_path, 
-    parse_language_code, 
+    get_input_path,
+    parse_language_code,
     print_translation_summary,
-    print_hints_summary
+    print_hints_summary,
+    analyze_input_filename  # Import the new helper
 )
 
 
@@ -37,22 +38,27 @@ def process_language(
     lang_code = parse_language_code(target_language)
     print(f"Processing language: {lang_code}")
     
-    # Load existing translations and overrides
+    # Load existing translations and overrides using file type info
     existing_json = FileHandler.load_existing_translations(
-        translation_data.input_path, 
-        lang_code
+        translation_data.input_path,
+        lang_code,
+        translation_data.file_type,
+        translation_data.filename_pattern
     )
-    
+
     overrides = FileHandler.load_overrides(
-        translation_data.input_path, 
-        lang_code
+        translation_data.input_path,
+        lang_code,
+        translation_data.file_type,
+        translation_data.filename_pattern
     )
     
-    # Determine which keys need translation
+    # Determine which keys need translation (pass file_type to filter)
     keys_for_translation = TranslationService.filter_keys_for_translation(
         translation_data.get_filtered_source(),
         existing_json,
-        overrides
+        overrides,
+        translation_data.file_type # Pass file type here
     )
     
     print_translation_summary(lang_code, len(keys_for_translation))
@@ -81,10 +87,12 @@ def process_language(
             overrides=overrides
         )
         
-        # Save the result
+        # Save the result (pass file type info)
         FileHandler.save_translation_result(
             result,
-            translation_data.input_path
+            translation_data.input_path,
+            translation_data.file_type,
+            translation_data.filename_pattern
         )
         
         return None
@@ -104,8 +112,13 @@ def run_translation() -> None:
     # Get input path
     cli_arg = sys.argv[1] if len(sys.argv) > 1 else None
     input_path = get_input_path(cli_arg, config["source_path"])
-    
-    # Load source JSON
+
+    # Analyze the input filename
+    file_type, source_language, filename_pattern = analyze_input_filename(input_path)
+    # TODO: Optionally add a check here if source_language from filename
+    # matches the actual content language if needed.
+
+    # Load source JSON/ARB content
     try:
         source_json = FileHandler.load_json_file(input_path)
     except Exception as e:
@@ -116,9 +129,11 @@ def run_translation() -> None:
     translation_data = TranslationData(
         source_json=source_json,
         target_languages=config["languages"],
-        input_path=input_path
+        input_path=input_path,
+        file_type=file_type,          # Pass file_type
+        filename_pattern=filename_pattern # Pass filename_pattern
     )
-    
+
     # Print hints summary
     print_hints_summary(translation_data.hints)
     
@@ -148,9 +163,12 @@ def run_translation() -> None:
             try:
                 result = future.result()
                 if result:
+                    # Save the result (pass file type info)
                     FileHandler.save_translation_result(
                         result,
-                        translation_data.input_path
+                        translation_data.input_path,
+                        translation_data.file_type,
+                        translation_data.filename_pattern
                     )
             except Exception as e:
                 print(f"Error processing translation for {target_language}:")
