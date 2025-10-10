@@ -12,7 +12,38 @@ class FileHandler:
     """
     Handles file operations for the JSON Translator.
     """
-    
+
+    @staticmethod
+    def _get_language_filename(
+        language_code: str,
+        file_type: Literal['json', 'arb'],
+        filename_pattern: Optional[str] = None
+    ) -> str:
+        """
+        Generate the appropriate filename for a given language and file type.
+
+        Args:
+            language_code: Full language code (e.g., 'de-DE')
+            file_type: The type of file ('json' or 'arb')
+            filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
+
+        Returns:
+            The generated filename
+
+        Raises:
+            ValueError: If file_type is 'arb' but filename_pattern is not provided
+        """
+        if file_type == 'arb':
+            if not filename_pattern:
+                raise ValueError("filename_pattern is required for ARB files")
+            # ARB uses base language code in pattern (e.g., 'de' not 'de-DE')
+            lang_for_pattern = language_code.split('-')[0]
+            return filename_pattern.format(lang=lang_for_pattern)
+        elif file_type == 'json':
+            return f"{language_code}.json"
+        else:
+            raise ValueError(f"Unsupported file type: {file_type}")
+
     @staticmethod
     def load_json_file(file_path: str) -> Dict[str, Any]:
         """
@@ -87,16 +118,12 @@ class FileHandler:
         Returns:
             Dictionary of override values, or empty dict if none exist
         """
-        if file_type == 'arb' and filename_pattern:
-            # ARB uses language code directly in the pattern (e.g., app_de.arb)
-            # We need the non-parsed code here (e.g., de, not de-DE)
-            lang_for_pattern = language_code.split('-')[0]
-            override_filename = filename_pattern.format(lang=lang_for_pattern)
-        elif file_type == 'json':
-            override_filename = f"{language_code}.json"
-        else:
-            # Fallback or error for unsupported types/missing pattern
-            print(f"Warning: Cannot determine override filename for type {file_type} and pattern {filename_pattern}")
+        try:
+            override_filename = FileHandler._get_language_filename(
+                language_code, file_type, filename_pattern
+            )
+        except ValueError as e:
+            print(f"Warning: {str(e)}")
             return {}
 
         overrides_path = os.path.join(
@@ -104,13 +131,12 @@ class FileHandler:
             "_overrides",
             override_filename
         )
-        
+
         if os.path.exists(overrides_path):
             try:
                 return FileHandler.load_json_file(overrides_path)
             except (IOError, json.JSONDecodeError) as e:
-                print(f"Error loading overrides for {language_code}:")
-                print(f"Error details: {str(e)}")
+                print(f"Error loading overrides for {language_code}: {str(e)}")
                 return {}
         return {}
 
@@ -133,28 +159,24 @@ class FileHandler:
         Returns:
             Dictionary of existing translations, or empty dict if none exist
         """
-        if file_type == 'arb' and filename_pattern:
-            # ARB uses language code directly in the pattern (e.g., app_de.arb)
-            lang_for_pattern = language_code.split('-')[0]
-            existing_filename = filename_pattern.format(lang=lang_for_pattern)
-        elif file_type == 'json':
-            existing_filename = f"{language_code}.json"
-        else:
-            # Fallback or error
-            print(f"Warning: Cannot determine existing translation filename for type {file_type} and pattern {filename_pattern}")
+        try:
+            existing_filename = FileHandler._get_language_filename(
+                language_code, file_type, filename_pattern
+            )
+        except ValueError as e:
+            print(f"Warning: {str(e)}")
             return {}
 
         existing_path = os.path.join(
             os.path.dirname(base_path),
             existing_filename
         )
-        
+
         if os.path.exists(existing_path):
             try:
                 return FileHandler.load_json_file(existing_path)
             except (IOError, json.JSONDecodeError) as e:
-                print(f"Error loading existing translations for {language_code}:")
-                print(f"Error details: {str(e)}")
+                print(f"Error loading existing translations for {language_code}: {str(e)}")
                 return {}
         return {}
 
@@ -174,15 +196,12 @@ class FileHandler:
             file_type: The type of the file ('json' or 'arb')
             filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
         """
-        if file_type == 'arb' and filename_pattern:
-            # ARB uses language code directly in the pattern (e.g., app_de.arb)
-            lang_for_pattern = result.language_code.split('-')[0]
-            output_filename = filename_pattern.format(lang=lang_for_pattern)
-        elif file_type == 'json':
-            output_filename = f"{result.language_code}.json"
-        else:
-            # Fallback or error
-            print(f"Warning: Cannot determine output filename for type {file_type} and pattern {filename_pattern}")
+        try:
+            output_filename = FileHandler._get_language_filename(
+                result.language_code, file_type, filename_pattern
+            )
+        except ValueError as e:
+            print(f"Warning: {str(e)}")
             return
 
         output_path = os.path.join(

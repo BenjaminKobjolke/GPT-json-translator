@@ -20,44 +20,65 @@ class ConfigManager:
         self.languages: List[str] = []
         self._load_config()
     
+    @staticmethod
+    def _get_config_value(
+        config: configparser.ConfigParser,
+        section: str,
+        key: str,
+        default: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Safely retrieve a configuration value from a ConfigParser.
+
+        Args:
+            config: ConfigParser instance
+            section: Section name
+            key: Key name
+            default: Default value if key doesn't exist
+
+        Returns:
+            The configuration value or default
+        """
+        if section in config and key in config[section]:
+            value = config[section][key].strip()
+            return value if value else default
+        return default
+
     def _load_config(self) -> None:
         """
         Load configuration from settings.ini file.
         """
         # Default configuration
         self._set_default_languages()
-        
+
         # Try to load from settings.ini
         config_path = os.path.join(os.getcwd(), "settings.ini")
-        if os.path.exists(config_path):
-            try:
-                config = configparser.ConfigParser()
-                config.read(config_path)
-                
-                # Extract configuration values from [General] section
-                if 'General' in config:
-                    if 'api_key' in config['General']:
-                        self.api_key = config['General']['api_key']
-                    
-                    if 'source_path' in config['General']:
-                        self.source_path = config['General']['source_path']
-                    
-                    if 'model' in config['General']:
-                        self.model = config['General']['model']
-                
-                # Extract languages from [Languages] section
-                if 'Languages' in config and 'languages' in config['Languages']:
-                    languages_str = config['Languages']['languages']
-                    if languages_str:
-                        # Split by comma and strip whitespace
-                        self.languages = [lang.strip() for lang in languages_str.split(',')]
-            except Exception as e:
-                print(f"Error loading configuration: {str(e)}")
-                print("Using default configuration.")
-                
-            # For backward compatibility, try loading from config.py if settings.ini doesn't have API key
-            if not self.api_key:
-                self._load_legacy_config()
+        if not os.path.exists(config_path):
+            self._load_legacy_config()
+            return
+
+        try:
+            config = configparser.ConfigParser()
+            config.read(config_path)
+
+            # Extract configuration values from [General] section
+            self.api_key = self._get_config_value(config, 'General', 'api_key', self.api_key)
+            self.source_path = self._get_config_value(config, 'General', 'source_path', self.source_path)
+            self.model = self._get_config_value(config, 'General', 'model', self.model)
+
+            # Extract languages from [Languages] section
+            languages_str = self._get_config_value(config, 'Languages', 'languages')
+            if languages_str:
+                # Split by comma and strip whitespace
+                self.languages = [lang.strip() for lang in languages_str.split(',') if lang.strip()]
+
+        except Exception as e:
+            print(f"Error loading configuration: {str(e)}")
+            print("Using default configuration.")
+
+        # For backward compatibility, try loading from config.py if settings.ini doesn't have API key
+        if not self.api_key:
+            self._load_legacy_config()
     def _set_default_languages(self) -> None:
         """
         Set the default list of languages for translation.
