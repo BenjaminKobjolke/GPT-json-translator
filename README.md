@@ -11,9 +11,11 @@ GPT JSON Translator is a Python script that automates the translation of JSON fi
 -   Translates JSON files to multiple languages simultaneously
 -   Preserves JSON structure (only translates values, not keys)
 -   Supports 40+ languages out of the box
+-   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
 -   Supports translation overrides for specific terms
 -   Provides translation hints for proper names or specific terminology
+-   Supports both standard JSON and Flutter ARB file formats
 
 ## Requirements
 
@@ -60,6 +62,32 @@ python json_translator.py path/to/your/source.json
 ```
 
 If no path is provided, the script will use the default path specified in `settings.ini` or prompt you to enter a path.
+
+### Excluding Languages
+
+You can exclude specific languages from translation using the `--exclude-languages` (or `--exclude`) flag. This is useful when you want to translate to most languages but skip a few:
+
+```
+python json_translator.py path/to/source.json --exclude-languages="he,ko"
+```
+
+Or use the shorter alias:
+
+```
+python json_translator.py path/to/source.json --exclude="he,ko,ar"
+```
+
+**Features:**
+- Accepts comma-separated language codes
+- Works with both short codes (`he`, `ko`) and full codes (`he-IL`, `ko-KR`)
+- Can exclude multiple languages at once
+- Useful when translating to all languages by default (when `languages` is commented out in `settings.ini`)
+
+**Example:**
+```bash
+# Translate to all languages except Hebrew and Korean
+python json_translator.py ./locales/en.json --exclude="he,ko"
+```
 
 ### Directory Structure
 
@@ -197,6 +225,16 @@ In the `[Languages]` section, specify the languages you want to translate to:
 [Languages]
 languages = it-IT, fr-FR, es-ES, de-DE
 ```
+
+If you comment out or omit the `languages` setting, the script will translate to all 40+ supported languages by default:
+
+```ini
+[Languages]
+# Uncomment and modify the languages you want to translate to, otherwise all will be translated
+#languages = de-DE
+```
+
+You can also use the `--exclude-languages` command-line flag to exclude specific languages from translation without modifying your configuration file (see [Excluding Languages](#excluding-languages) section).
 
 ### OpenAI Model
 

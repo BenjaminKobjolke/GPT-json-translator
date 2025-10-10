@@ -3,6 +3,7 @@ Main entry point for the JSON Translator.
 """
 import sys
 import os
+import argparse
 import concurrent.futures
 from typing import Dict, Any, List, Optional
 
@@ -102,16 +103,23 @@ def run_translation() -> None:
     """
     Run the translation process.
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Translate JSON files to multiple languages using OpenAI GPT')
+    parser.add_argument('input_path', nargs='?', help='Path to the source JSON file')
+    parser.add_argument('--exclude-languages', '--exclude',
+                        help='Comma-separated list of language codes to exclude (e.g., "he,ko" or "he-IL,ko-KR")')
+
+    args = parser.parse_args()
+
     # Load configuration
     config_manager = ConfigManager()
     if not config_manager.validate():
         sys.exit(1)
-    
+
     config = config_manager.get_config()
-    
+
     # Get input path
-    cli_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    input_path = get_input_path(cli_arg, config["source_path"])
+    input_path = get_input_path(args.input_path, config["source_path"])
 
     # Analyze the input filename
     file_type, source_language, filename_pattern = analyze_input_filename(input_path)
@@ -124,11 +132,31 @@ def run_translation() -> None:
     except Exception as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
-    
+
+    # Filter languages based on exclusions
+    target_languages = config["languages"]
+    if args.exclude_languages:
+        # Parse excluded languages (handle both "he" and "he-IL" formats)
+        excluded = [lang.strip() for lang in args.exclude_languages.split(',')]
+        excluded_bases = [parse_language_code(lang) for lang in excluded]
+
+        # Filter out excluded languages
+        original_count = len(target_languages)
+        target_languages = [
+            lang for lang in target_languages
+            if parse_language_code(lang) not in excluded_bases
+        ]
+
+        excluded_count = original_count - len(target_languages)
+        if excluded_count > 0:
+            print(f"Excluded {excluded_count} language(s): {', '.join(excluded)}")
+        else:
+            print(f"Warning: No languages were excluded. Check your --exclude-languages values.")
+
     # Create translation data
     translation_data = TranslationData(
         source_json=source_json,
-        target_languages=config["languages"],
+        target_languages=target_languages,
         input_path=input_path,
         file_type=file_type,          # Pass file_type
         filename_pattern=filename_pattern # Pass filename_pattern
