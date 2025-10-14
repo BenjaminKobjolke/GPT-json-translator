@@ -69,7 +69,8 @@ def process_language(
         translated_content = translation_service.translate(
             target_language,
             keys_for_translation,
-            translation_data.hints
+            translation_data.global_hints,
+            translation_data.field_hints
         )
         
         # Create and return result
@@ -163,7 +164,7 @@ def run_translation() -> None:
     )
 
     # Print hints summary
-    print_hints_summary(translation_data.hints)
+    print_hints_summary(translation_data.global_hints, translation_data.field_hints)
     
     # Create translation service
     translation_service = TranslationService(

@@ -35,29 +35,43 @@ class TranslationService:
         openai.api_key = api_key
 
     @staticmethod
-    def _format_hints(hints: Optional[Dict[str, str]]) -> str:
+    def _format_hints(
+        global_hints: Optional[Dict[str, str]] = None,
+        field_hints: Optional[Dict[str, str]] = None
+    ) -> str:
         """
         Format translation hints into a readable string for the AI.
 
         Args:
-            hints: Dictionary of hint keys and values
+            global_hints: Dictionary of global hint keys and values
+            field_hints: Dictionary mapping field names to their specific hints
 
         Returns:
             Formatted hints string, or empty string if no hints
         """
-        if not hints:
-            return ""
+        hints_lines = []
 
-        hints_lines = ["Translation hints:"]
-        hints_lines.extend(f"- {value}" for value in hints.values())
-        hints_lines.append("")  # Add blank line after hints
+        # Add global hints
+        if global_hints:
+            hints_lines.append("Translation hints:")
+            hints_lines.extend(f"- {value}" for value in global_hints.values())
+            hints_lines.append("")  # Add blank line
+
+        # Add field-specific hints
+        if field_hints:
+            hints_lines.append("Field-specific hints:")
+            for field_name, hint_value in field_hints.items():
+                hints_lines.append(f"- {field_name}: {hint_value}")
+            hints_lines.append("")  # Add blank line
+
         return "\n".join(hints_lines)
     
     def translate(
         self,
         target_lang: str,
         content_to_translate: Dict[str, Any],
-        hints: Optional[Dict[str, str]] = None
+        global_hints: Optional[Dict[str, str]] = None,
+        field_hints: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Translate content to the target language.
@@ -65,7 +79,8 @@ class TranslationService:
         Args:
             target_lang: Target language code
             content_to_translate: Dictionary of content to translate
-            hints: Optional translation hints
+            global_hints: Optional global translation hints
+            field_hints: Optional field-specific translation hints
 
         Returns:
             Dictionary of translated content
@@ -73,11 +88,11 @@ class TranslationService:
         print(f"Translating to {target_lang}...")
 
         # Format hints for the AI
-        hints_text = self._format_hints(hints)
+        hints_text = self._format_hints(global_hints, field_hints)
 
         if hints_text:
             print(f"Hints: {hints_text}")
-        
+
         try:
             # Call OpenAI API to translate text
             completion = openai.chat.completions.create(
@@ -127,8 +142,11 @@ class TranslationService:
         """
         keys_for_translation = {}
         for key, value in source_json.items():
-            # Skip hint keys
+            # Skip global hint keys
             if key.startswith('_') and key.endswith('_'):
+                continue
+            # Skip field-specific hint keys
+            if key.startswith('_hint_'):
                 continue
             # Skip @@locale for ARB files
             if file_type == 'arb' and key == '@@locale':

@@ -35,9 +35,16 @@ python json_translator.py path/to/source.json --exclude="he,ko"
 ```
 
 ### JSON Attribute Remover
-Removes specified attributes from all translated JSON files (excluding source `en.json`):
+Removes specified attributes from all translated JSON files (excluding source files):
 ```bash
+# Basic usage
 python json_attribute_remover.py path/to/directory path/to/attributes_to_remove.json
+
+# Specify custom source file to exclude
+python json_attribute_remover.py path/to/directory attributes.json --exclude-source="app_en.arb"
+
+# Get help
+python json_attribute_remover.py --help
 ```
 
 ### Batch Files
@@ -99,7 +106,8 @@ src/
   - Skips `@@locale` key during translation
 
 ### Translation Logic
-- **Hints**: Keys like `_hint_` provide context to GPT but aren't translated or included in output
+- **Global Hints**: Keys like `_hint_` provide general context to GPT for all translations
+- **Field-Specific Hints**: Keys like `_hint_short_description` provide context for specific fields
 - **Overrides**: Files in `_overrides/{lang}.json` force specific translations, taking precedence
 - **Incremental**: Only translates keys missing from existing translations or overrides
 - **Merging**: Final output = existing translations + new translations + overrides (overrides win)
@@ -140,18 +148,40 @@ project/
 │       └── app_de.arb     # German overrides
 ```
 
-## Translation Hints Example
+## Translation Hints Examples
 
-Source file with hints:
+### Global Hints
+Global hints apply to all fields in the translation:
 ```json
 {
-  "_hint_": "SUMMERA AI is a proper name and should not be translated",
-  "title": "Welcome to SUMMERA AI",
+  "_hint_": "If the language has a formal and an informal way, use the informal way.",
+  "title": "Welcome to our app",
   "description": "Your AI assistant"
 }
 ```
 
-Hints are sent to GPT for context but excluded from output files.
+### Field-Specific Hints
+Field-specific hints provide targeted guidance for individual fields:
+```json
+{
+  "_hint_": "SUMMERA AI is a proper name and should not be translated",
+  "short_description": "Explorer with editing, favorites & smart file management",
+  "_hint_short_description": "Maximum length is 60 characters, shorten if too long by not adhering 100% to the original language",
+  "app_name": "File Explorer Pro",
+  "welcome_message": "Welcome to our application!"
+}
+```
+
+When translating, GPT receives both types of hints:
+```
+Translation hints:
+- If the language has a formal and an informal way, use the informal way.
+
+Field-specific hints:
+- short_description: Maximum length is 60 characters, shorten if too long by not adhering 100% to the original language
+```
+
+All hints are sent to GPT for context but excluded from output files.
 
 ## Error Handling
 
@@ -161,11 +191,77 @@ Hints are sent to GPT for context but excluded from output files.
 - Invalid JSON responses from OpenAI return empty dict, allowing process to continue
 - ARB files without valid patterns fall back to JSON mode with warnings
 
+## Code Organization Patterns
+
+### Design Principles Applied
+The codebase follows modern Python best practices:
+
+1. **DRY (Don't Repeat Yourself)**
+   - `FileHandler._get_language_filename()` centralizes filename generation logic
+   - `ConfigManager._get_config_value()` handles safe config retrieval
+   - `TranslationService._format_hints()` extracts hint formatting
+
+2. **Single Responsibility Principle**
+   - Each class has one primary responsibility
+   - Methods are focused and typically under 35 lines
+   - Helper methods extracted for reusable logic
+
+3. **Type Safety**
+   - Comprehensive type hints throughout (95%+ coverage)
+   - Uses `Literal['json', 'arb']` for type constraints
+   - `Optional[T]` for nullable values
+
+4. **Error Handling Strategy**
+   - Specific exception types (FileNotFoundError, JSONDecodeError, ValueError)
+   - Graceful degradation: errors in one language don't block others
+   - Descriptive error messages with context
+
+### Key Implementation Details
+
+**FileHandler** (src/file_handler.py)
+- `_get_language_filename()`: Private helper eliminates code duplication across load/save operations
+- All methods are static since no instance state needed
+- Consistent error handling pattern across all file operations
+
+**TranslationService** (src/translator.py)
+- `SYSTEM_PROMPT`: Class constant for easy modification
+- `_format_hints()`: Separates presentation logic from translation logic
+- Returns empty dict on errors to allow other translations to continue
+
+**ConfigManager** (src/config.py)
+- `_get_config_value()`: Safely retrieves config with defaults and empty string handling
+- Dual loading: settings.ini (primary) + config.py (legacy fallback)
+- Validates API key presence before allowing translation
+
+**JSON Attribute Remover** (json_attribute_remover.py)
+- Uses `pathlib.Path` for modern path handling
+- Functional decomposition: load → filter → process → save
+- Returns statistics (files processed, attributes removed)
+- Configurable source file exclusion via `--exclude-source`
+
+### Concurrency Model
+- Uses `concurrent.futures.ThreadPoolExecutor` for parallel language processing
+- Each language translation is independent (no shared state)
+- Thread-safe file operations (each language writes to different file)
+- Errors isolated per language (one failure doesn't affect others)
+
+### Data Flow
+```
+Input File → FileHandler.load_json_file()
+           → TranslationData (extracts hints, filters source)
+           → ConfigManager (languages list)
+           → Language Filtering (--exclude-languages)
+           → ThreadPoolExecutor spawns workers
+              → Each worker: TranslationService.filter_keys_for_translation()
+                           → TranslationService.translate() (OpenAI API call)
+                           → TranslationResult (merges existing + new + overrides)
+              → FileHandler.save_translation_result()
+```
+
 ## Development Notes
 
-- Uses `concurrent.futures.ThreadPoolExecutor` for parallel language processing
-- All file operations centralized in **FileHandler** for consistency
-- **TranslationData** model separates hints from translatable content
 - OpenAI API uses `response_format={"type": "json_object"}` for structured output
 - System prompt emphasizes translating values only, not keys
 - UTF-8 encoding enforced throughout for international character support
+- argparse used for CLI interfaces (supports `--help` flag)
+- All file I/O operations go through FileHandler for consistency

@@ -1,7 +1,7 @@
 """
 Data models for the JSON Translator.
 """
-from typing import Dict, List, Optional, Any, Literal
+from typing import Dict, List, Optional, Any, Literal, Tuple
 
 
 class TranslationData:
@@ -33,32 +33,52 @@ class TranslationData:
         self.input_path = input_path
         self.file_type = file_type
         self.filename_pattern = filename_pattern
-        self.hints = self._extract_hints()
+        self.global_hints, self.field_hints = self._extract_hints()
     
-    def _extract_hints(self) -> Dict[str, str]:
+    def _extract_hints(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         """
         Extract translation hints from the source JSON.
-        Hints are keys that start and end with underscore.
-        
+        Supports both global hints and field-specific hints.
+
+        Global hints: Keys that start and end with underscore (e.g., "_hint_")
+        Field-specific hints: Keys that start with "_hint_" followed by field name (e.g., "_hint_short_description")
+
         Returns:
-            Dictionary of hint keys and their values
+            Tuple of (global_hints, field_hints) where field_hints maps field names to their hints
         """
-        hints = {}
+        global_hints = {}
+        field_hints = {}
+
         for key, value in list(self.source_json.items()):
-            if key.startswith('_') and key.endswith('_'):
-                hints[key] = value
-        return hints
+            if key.startswith('_hint_'):
+                # Check if it's a field-specific hint
+                if key != '_hint_' and not key.endswith('_'):
+                    # Extract field name: "_hint_short_description" -> "short_description"
+                    field_name = key[6:]  # Remove "_hint_" prefix
+                    field_hints[field_name] = value
+                elif key == '_hint_':
+                    # Global hint
+                    global_hints[key] = value
+            elif key.startswith('_') and key.endswith('_'):
+                # Other global hints (backward compatibility)
+                global_hints[key] = value
+
+        return global_hints, field_hints
     
     def get_filtered_source(self) -> Dict[str, Any]:
         """
         Get a copy of the source JSON with hint keys removed.
-        
+
         Returns:
             Filtered source JSON without hint keys
         """
         filtered_data = self.source_json.copy()
         for key in list(filtered_data.keys()):
+            # Remove global hints (start and end with _)
             if key.startswith('_') and key.endswith('_'):
+                filtered_data.pop(key, None)
+            # Remove field-specific hints (start with _hint_)
+            elif key.startswith('_hint_'):
                 filtered_data.pop(key, None)
         return filtered_data
 

@@ -14,7 +14,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON fi
 -   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
 -   Supports translation overrides for specific terms
--   Provides translation hints for proper names or specific terminology
+-   Provides global and field-specific translation hints
 -   Supports both standard JSON and Flutter ARB file formats
 
 ## Requirements
@@ -107,24 +107,50 @@ project/
 
 ### Translation Hints
 
-You can include special keys in your source JSON that serve as hints for the translation process. These keys should start and end with an underscore (e.g., `_hint_`).
+You can provide translation hints to guide the AI translator. Hints are automatically excluded from the translated output files.
 
-Example:
+#### Global Hints
+
+Global hints apply to all fields in your translation. Use keys that start and end with an underscore (e.g., `_hint_`):
 
 ```json
 {
-    "_hint_": "SUMMERA AI is a proper name and should not be translated",
+    "_hint_": "If the language has a formal and an informal way, use the informal way.",
     "title": "Welcome to SUMMERA AI",
     "description": "SUMMERA AI helps you with daily tasks"
 }
 ```
 
-The hint will be sent to the AI translator but won't be included in the final translated files. This is useful for:
+#### Field-Specific Hints
 
+Field-specific hints provide targeted guidance for individual fields. Use the pattern `_hint_fieldname`:
+
+```json
+{
+    "_hint_": "SUMMERA AI is a proper name and should not be translated",
+    "short_description": "Explorer with editing, favorites & smart file management",
+    "_hint_short_description": "Maximum length is 60 characters, shorten if too long by not adhering 100% to the original language",
+    "app_name": "File Explorer Pro",
+    "welcome_message": "Welcome to our application!"
+}
+```
+
+When translating, the AI receives both types of hints:
+```
+Translation hints:
+- SUMMERA AI is a proper name and should not be translated
+
+Field-specific hints:
+- short_description: Maximum length is 60 characters, shorten if too long by not adhering 100% to the original language
+```
+
+**Use cases for hints:**
 -   Proper names that should remain untranslated
 -   Brand names or product names
 -   Technical terms with specific translations
 -   Context information for ambiguous terms
+-   Length constraints for specific fields
+-   Tone or formality requirements (formal vs informal)
 
 ### Translation Overrides
 

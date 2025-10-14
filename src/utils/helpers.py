@@ -99,14 +99,25 @@ def print_translation_summary(language_code: str, keys_count: int) -> None:
         print(f"Processing {language_code}: No new keys to translate")
 
 
-def print_hints_summary(hints: Dict[str, str]) -> None:
+def print_hints_summary(global_hints: Dict[str, str], field_hints: Dict[str, str]) -> None:
     """
     Print a summary of the translation hints.
-    
+
     Args:
-        hints: Dictionary of translation hints
+        global_hints: Dictionary of global translation hints
+        field_hints: Dictionary of field-specific translation hints
     """
-    if hints:
-        print(f"Found {len(hints)} translation hints:")
-        for key, value in hints.items():
-            print(f"  - {key}: {value}")
+    total_hints = len(global_hints) + len(field_hints)
+
+    if total_hints > 0:
+        print(f"Found {total_hints} translation hint(s):")
+
+        if global_hints:
+            print(f"  Global hints ({len(global_hints)}):")
+            for key, value in global_hints.items():
+                print(f"    - {key}: {value}")
+
+        if field_hints:
+            print(f"  Field-specific hints ({len(field_hints)}):")
+            for field_name, hint_value in field_hints.items():
+                print(f"    - {field_name}: {hint_value}")
