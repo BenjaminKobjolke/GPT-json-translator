@@ -89,6 +89,69 @@ python json_translator.py path/to/source.json --exclude="he,ko,ar"
 python json_translator.py ./locales/en.json --exclude="he,ko"
 ```
 
+### JSON Attribute Remover Utility
+
+The `json_attribute_remover.py` utility removes specified attributes from all translated JSON files in a directory. This is useful for cleaning up translation files by removing obsolete or unwanted keys.
+
+**Usage:**
+
+```bash
+# Basic usage
+python json_attribute_remover.py path/to/directory path/to/attributes_to_remove.json
+
+# Specify custom source file to exclude
+python json_attribute_remover.py path/to/directory attributes.json --exclude-source="app_en.arb"
+
+# Get help
+python json_attribute_remover.py --help
+```
+
+**Attributes file format:**
+
+The attributes file should contain a JSON array of attribute names to remove:
+
+```json
+[
+  "obsolete_key",
+  "deprecated_field",
+  "old_translation"
+]
+```
+
+**Features:**
+- Automatically excludes source files (`en.json`, `app_en.arb` by default)
+- Only modifies files that contain the specified attributes
+- Preserves JSON formatting with proper indentation
+- Shows progress and summary statistics
+
+#### Windows Path Issue
+
+**IMPORTANT:** On Windows, when using paths with spaces in batch files or cmd.exe, avoid trailing backslashes in quoted paths as they can escape the closing quote.
+
+**Problem example (causes error):**
+```batch
+python json_attribute_remover.py "D:\path\to\directory\" "C:\path with spaces\file.json"
+```
+
+The trailing `\` before the closing `"` escapes the quote, causing argument parsing to fail.
+
+**Solutions:**
+
+1. **Remove the trailing backslash** (recommended):
+   ```batch
+   python json_attribute_remover.py "D:\path\to\directory" "C:\path with spaces\file.json"
+   ```
+
+2. **Double the trailing backslash**:
+   ```batch
+   python json_attribute_remover.py "D:\path\to\directory\\" "C:\path with spaces\file.json"
+   ```
+
+3. **Use forward slashes** (Windows accepts both):
+   ```batch
+   python json_attribute_remover.py "D:/path/to/directory" "C:/path with spaces/file.json"
+   ```
+
 ### Directory Structure
 
 The script expects the following directory structure:
@@ -172,6 +235,7 @@ The project is organized into a modular structure:
 ```
 GPT-json-translator/
 ├── json_translator.py        # Main entry point script
+├── json_attribute_remover.py # Utility to remove attributes from JSON files
 ├── settings.ini              # Configuration file
 ├── settings_example.ini      # Example configuration template
 ├── src/                      # Source code directory
