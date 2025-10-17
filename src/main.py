@@ -16,7 +16,8 @@ from src.utils.helpers import (
     parse_language_code,
     print_translation_summary,
     print_hints_summary,
-    analyze_input_filename  # Import the new helper
+    analyze_input_filename,
+    discover_override_files
 )
 
 
@@ -100,6 +101,85 @@ def process_language(
         return None
 
 
+def apply_overrides_only() -> None:
+    """
+    Apply override files to translation files without performing any translation.
+    Discovers all override files in _overrides/ and merges them into corresponding translation files.
+    """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Apply override files to translation files')
+    parser.add_argument('input_path', nargs='?', help='Path to the source JSON file')
+    args = parser.parse_args()
+
+    # Load configuration
+    config_manager = ConfigManager()
+    config = config_manager.get_config()
+
+    # Get input path
+    input_path = get_input_path(args.input_path, config["source_path"])
+
+    # Analyze the input filename to determine file type and pattern
+    file_type, source_language, filename_pattern = analyze_input_filename(input_path)
+
+    # Discover all override files
+    override_languages = discover_override_files(input_path, file_type, filename_pattern)
+
+    if not override_languages:
+        print("No override files found in _overrides/ directory.")
+        return
+
+    print(f"Found {len(override_languages)} override file(s) to apply:")
+    for lang in override_languages:
+        print(f"  - {lang}")
+    print()
+
+    # Process each override file
+    applied_count = 0
+    for lang_code in override_languages:
+        print(f"Processing overrides for {lang_code}...")
+
+        # Load the override file
+        overrides = FileHandler.load_overrides(
+            input_path,
+            lang_code,
+            file_type,
+            filename_pattern
+        )
+
+        if not overrides:
+            print(f"  Warning: Override file empty or invalid for {lang_code}")
+            continue
+
+        # Load existing translation file (or empty dict if it doesn't exist)
+        existing_content = FileHandler.load_existing_translations(
+            input_path,
+            lang_code,
+            file_type,
+            filename_pattern
+        )
+
+        # Create a TranslationResult to merge the content
+        result = TranslationResult(
+            language_code=lang_code,
+            translated_content={},
+            existing_content=existing_content,
+            overrides=overrides
+        )
+
+        # Save the merged result
+        FileHandler.save_translation_result(
+            result,
+            input_path,
+            file_type,
+            filename_pattern
+        )
+
+        applied_count += 1
+        print(f"  Applied {len(overrides)} override(s) to {lang_code}")
+
+    print(f"\nSuccessfully applied overrides to {applied_count} language(s).")
+
+
 def run_translation() -> None:
     """
     Run the translation process.
@@ -109,8 +189,15 @@ def run_translation() -> None:
     parser.add_argument('input_path', nargs='?', help='Path to the source JSON file')
     parser.add_argument('--exclude-languages', '--exclude',
                         help='Comma-separated list of language codes to exclude (e.g., "he,ko" or "he-IL,ko-KR")')
+    parser.add_argument('--apply-overrides', action='store_true',
+                        help='Apply override files only, without performing translation')
 
     args = parser.parse_args()
+
+    # If --apply-overrides flag is set, run override application instead
+    if args.apply_overrides:
+        apply_overrides_only()
+        return
 
     # Load configuration
     config_manager = ConfigManager()

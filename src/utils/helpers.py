@@ -121,3 +121,57 @@ def print_hints_summary(global_hints: Dict[str, str], field_hints: Dict[str, str
             print(f"  Field-specific hints ({len(field_hints)}):")
             for field_name, hint_value in field_hints.items():
                 print(f"    - {field_name}: {hint_value}")
+
+
+def discover_override_files(
+    base_path: str,
+    file_type: Literal['json', 'arb'],
+    filename_pattern: Optional[str] = None
+) -> List[str]:
+    """
+    Discover all override files in the _overrides directory.
+
+    Args:
+        base_path: Base path where the source file is located
+        file_type: The type of the file ('json' or 'arb')
+        filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
+
+    Returns:
+        List of language codes for which override files exist
+    """
+    overrides_dir = os.path.join(os.path.dirname(base_path), "_overrides")
+
+    if not os.path.exists(overrides_dir):
+        return []
+
+    language_codes = []
+
+    try:
+        for filename in os.listdir(overrides_dir):
+            file_path = os.path.join(overrides_dir, filename)
+
+            # Skip directories
+            if not os.path.isfile(file_path):
+                continue
+
+            # Parse filename based on file type
+            if file_type == 'arb':
+                # Match ARB pattern like 'app_de.arb'
+                if filename_pattern:
+                    # Extract the base pattern (e.g., 'app' from 'app_{lang}.arb')
+                    base_pattern = filename_pattern.replace('_{lang}.arb', '')
+                    match = re.match(rf"^{re.escape(base_pattern)}_([a-zA-Z]{{2}}(?:_[a-zA-Z]{{2}})?)\\.arb$", filename)
+                    if match:
+                        lang_code = match.group(1).replace('_', '-')
+                        language_codes.append(lang_code)
+            elif file_type == 'json':
+                # Match JSON pattern like 'de-DE.json' or 'de.json'
+                match = re.match(r"^([a-zA-Z]{2}(?:-[a-zA-Z]{2})?)\\.json$", filename)
+                if match:
+                    language_codes.append(match.group(1))
+
+    except OSError as e:
+        print(f"Error reading overrides directory: {str(e)}")
+        return []
+
+    return language_codes

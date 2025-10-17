@@ -89,6 +89,43 @@ python json_translator.py path/to/source.json --exclude="he,ko,ar"
 python json_translator.py ./locales/en.json --exclude="he,ko"
 ```
 
+### Applying Overrides Only
+
+You can apply override files to translation files without performing any translation using the `--apply-overrides` flag. This is useful when you want to bulk-update translation files with override values without triggering API calls or re-translation.
+
+```bash
+python json_translator.py path/to/source.json --apply-overrides
+```
+
+**How it works:**
+- Scans the `_overrides/` directory for all available override files
+- Discovers override files automatically (works with both JSON and ARB formats)
+- Applies each override to its corresponding translation file
+- Creates new translation files if they don't exist yet
+- Merges overrides with existing translations (overrides take precedence)
+
+**Features:**
+- No API calls or translation - pure file merging operation
+- Automatically detects file type (JSON or ARB) from the source file
+- Processes all override files found, regardless of config settings
+- Creates missing translation files from override content
+- Shows summary of applied overrides for each language
+
+**Example:**
+```bash
+# Apply all overrides in _overrides/ to translation files
+python json_translator.py ./locales/en.json --apply-overrides
+
+# For ARB files
+python json_translator.py ./lib/l10n/app_en.arb --apply-overrides
+```
+
+**Use cases:**
+- Bulk update specific terms across all translations
+- Initialize new translation files with predefined values
+- Apply terminology changes without re-translating
+- Sync override changes to all language files quickly
+
 ### JSON Attribute Remover Utility
 
 The `json_attribute_remover.py` utility removes specified attributes from all translated JSON files in a directory. This is useful for cleaning up translation files by removing obsolete or unwanted keys.
