@@ -84,11 +84,11 @@ class ConfigManager:
         Set the default list of languages for translation.
         """
         self.languages = [
-            "it-IT", "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL", 
-            "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP", "ko-KR", "ar-AR", 
-            "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ", "sk-SK", 
-            "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI", 
-            "et-EE", "lv-LV", "lt-LT", "he-IL", "fa-IR", "ur-PK", "bn-IN", 
+            "en-US", "it-IT", "fr-FR", "es-ES", "de-DE", "pt-PT", "pt-BR", "nl-NL",
+            "ru-RU", "pl-PL", "tr-TR", "zh-CN", "ja-JP", "ko-KR", "ar-AR",
+            "hi-IN", "sv-SE", "no-NO", "fi-FI", "da-DK", "cs-CZ", "sk-SK",
+            "hu-HU", "ro-RO", "uk-UA", "bg-BG", "hr-HR", "sr-SP", "sl-SI",
+            "et-EE", "lv-LV", "lt-LT", "he-IL", "fa-IR", "ur-PK", "bn-IN",
             "ta-IN", "te-IN", "mr-IN", "ml-IN", "th-TH", "vi-VN"
         ]
     

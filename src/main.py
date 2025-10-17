@@ -241,6 +241,19 @@ def run_translation() -> None:
         else:
             print(f"Warning: No languages were excluded. Check your --exclude-languages values.")
 
+    # Filter out source language to avoid redundant self-translation
+    if source_language:
+        source_base = parse_language_code(source_language)
+        original_count = len(target_languages)
+        target_languages = [
+            lang for lang in target_languages
+            if parse_language_code(lang) != source_base
+        ]
+
+        excluded_count = original_count - len(target_languages)
+        if excluded_count > 0:
+            print(f"Skipping source language: {source_language} (avoiding redundant self-translation)")
+
     # Create translation data
     translation_data = TranslationData(
         source_json=source_json,
