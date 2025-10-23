@@ -84,33 +84,56 @@ If `settings.ini` is missing required values, the tool falls back to legacy `con
 json_translator.py          # Entry point wrapper
 json_attribute_remover.py   # Utility to remove attributes from translations
 src/
-├── main.py                 # Orchestrates translation workflow
+├── main.py                 # Thin entry point (delegates to CLI)
 ├── config.py               # ConfigManager - loads settings.ini
 ├── translator.py           # TranslationService - OpenAI API integration
 ├── file_handler.py         # FileHandler - all file I/O operations
 ├── models/
 │   └── translation_data.py # TranslationData, TranslationResult models
-└── utils/
-    └── helpers.py          # Helper functions (path, language parsing, summaries)
+├── services/               # Business logic services
+│   ├── translation_orchestrator.py  # Coordinates translation workflow
+│   ├── override_service.py          # Applies override files
+│   └── recursive_translator.py      # Handles recursive translation
+├── cli/                    # Command-line interface
+│   ├── argument_parser.py  # CLI argument definitions
+│   └── commands.py         # Command handlers and routing
+└── utils/                  # Utility functions
+    ├── path_utils.py       # Path resolution and file analysis
+    ├── language_utils.py   # Language code manipulation
+    ├── output_utils.py     # Console output formatting
+    └── file_discovery.py   # File system discovery
 ```
 
-### Core Flow (src/main.py)
-1. **ArgumentParser** parses command-line arguments (input path, exclude languages, recursive mode)
-2. **ConfigManager** loads settings.ini (API key, model, languages)
-3. **Recursive mode** (if `--translate-recursive` is set):
-   - **find_directories_with_source_file()** recursively searches for directories containing source file
-   - **has_only_source_file()** filters to directories with only source file (no translations)
-   - Loops through each qualifying directory and calls **process_single_file()**
-4. **Regular mode** (single file):
-   - Calls **process_single_file()** with input path
-5. **process_single_file()** workflow:
-   - **Language filtering** applies exclusions if `--exclude-languages` is provided
-   - **analyze_input_filename()** detects file type (JSON vs ARB) and extracts pattern
-   - **FileHandler** loads source file, existing translations, and overrides
-   - **TranslationData** extracts hints (keys starting/ending with `_`) and filters source
-   - **TranslationService.filter_keys_for_translation()** determines what needs translation
-   - Concurrent **ThreadPoolExecutor** processes each language in parallel
-   - **FileHandler** saves results with proper formatting (JSON or ARB with `@@locale`)
+### Core Flow
+
+The application follows a layered architecture with clear separation of concerns:
+
+**Entry Point (src/main.py → src/cli/commands.py)**
+1. **main.py** delegates to **run_translation_command()**
+2. **argument_parser.create_argument_parser()** configures CLI arguments
+3. **commands.py** routes to appropriate service based on flags:
+   - `--apply-overrides` → **OverrideService.apply_overrides()**
+   - `--translate-recursive` → **RecursiveTranslator.find_and_translate()**
+   - Default → **TranslationOrchestrator.process_single_file()**
+
+**Override Mode (OverrideService)**
+- Discovers override files in `_overrides/` directory
+- Merges overrides with existing translations
+- No API calls, pure file operations
+
+**Recursive Mode (RecursiveTranslator)**
+1. **find_directories_with_source_file()** searches directory tree
+2. **has_only_source_file()** filters to untranslated directories
+3. Calls **TranslationOrchestrator.process_single_file()** for each directory
+
+**Single File Mode (TranslationOrchestrator)**
+1. **path_utils.analyze_input_filename()** detects file type (JSON/ARB)
+2. **FileHandler.load_json_file()** loads source content
+3. **language_utils** filters excluded and source languages
+4. **TranslationData** extracts hints and prepares data
+5. **TranslationService** performs translation via OpenAI API
+6. **ThreadPoolExecutor** processes languages concurrently
+7. **FileHandler.save_translation_result()** writes output files
 
 ### File Type Support
 - **Standard JSON**: Files like `en.json`, outputs `de.json`, `fr.json`, etc.
@@ -232,20 +255,29 @@ The codebase follows modern Python best practices:
 
 ### Key Implementation Details
 
-**FileHandler** (src/file_handler.py)
-- `_get_language_filename()`: Private helper eliminates code duplication across load/save operations
-- All methods are static since no instance state needed
-- Consistent error handling pattern across all file operations
+**Services Layer** (src/services/)
+- **TranslationOrchestrator**: Coordinates translation workflow, manages concurrent execution
+- **OverrideService**: Handles override file application without translation
+- **RecursiveTranslator**: Manages batch processing of directory hierarchies
+- All services are stateless with static methods for easy testing
 
-**TranslationService** (src/translator.py)
-- `SYSTEM_PROMPT`: Class constant for easy modification
-- `_format_hints()`: Separates presentation logic from translation logic
-- Returns empty dict on errors to allow other translations to continue
+**CLI Layer** (src/cli/)
+- **argument_parser**: Centralized argument configuration using argparse
+- **commands**: Routes commands to appropriate services, handles flow control
+- Clean separation between CLI concerns and business logic
 
-**ConfigManager** (src/config.py)
-- `_get_config_value()`: Safely retrieves config with defaults and empty string handling
-- Dual loading: settings.ini (primary) + config.py (legacy fallback)
-- Validates API key presence before allowing translation
+**Utilities** (src/utils/)
+- **path_utils**: Path resolution and filename analysis (file type detection)
+- **language_utils**: Language code parsing and filtering logic
+- **output_utils**: Console output formatting and summaries
+- **file_discovery**: File system traversal and pattern matching
+- All utilities are pure functions with no side effects
+
+**Core Components**
+- **FileHandler** (src/file_handler.py): All file I/O operations, consistent error handling
+- **TranslationService** (src/translator.py): OpenAI API integration, hint formatting
+- **ConfigManager** (src/config.py): Configuration loading with fallback support
+- **TranslationData** (src/models/): Data models for translation workflow
 
 **JSON Attribute Remover** (json_attribute_remover.py)
 - Uses `pathlib.Path` for modern path handling
@@ -261,26 +293,53 @@ The codebase follows modern Python best practices:
 
 ### Data Flow
 
-**Single File Mode:**
+**Command Routing (CLI Layer)**
 ```
-Input File → FileHandler.load_json_file()
-           → TranslationData (extracts hints, filters source)
-           → ConfigManager (languages list)
-           → Language Filtering (--exclude-languages)
-           → ThreadPoolExecutor spawns workers
-              → Each worker: TranslationService.filter_keys_for_translation()
-                           → TranslationService.translate() (OpenAI API call)
-                           → TranslationResult (merges existing + new + overrides)
-              → FileHandler.save_translation_result()
+main.py → run_translation_command()
+        → create_argument_parser().parse_args()
+        → Route based on flags:
+           ├─ --apply-overrides → OverrideService
+           ├─ --translate-recursive → RecursiveTranslator
+           └─ default → TranslationOrchestrator
 ```
 
-**Recursive Mode:**
+**Single File Translation (TranslationOrchestrator)**
 ```
-Base Directory + Source Filename
-           → find_directories_with_source_file() (recursive search)
-           → has_only_source_file() (filter directories)
-           → For each qualifying directory:
-              → process_single_file() (full translation workflow as above)
+process_single_file()
+  ├─ path_utils.analyze_input_filename()
+  ├─ FileHandler.load_json_file()
+  ├─ language_utils.filter_excluded_languages()
+  ├─ language_utils.filter_source_language()
+  ├─ TranslationData (extracts hints)
+  ├─ ThreadPoolExecutor.submit()
+  │   └─ For each language:
+  │       ├─ process_language()
+  │       ├─ FileHandler.load_existing_translations()
+  │       ├─ FileHandler.load_overrides()
+  │       ├─ TranslationService.filter_keys_for_translation()
+  │       ├─ TranslationService.translate() (OpenAI API)
+  │       └─ TranslationResult (merge)
+  └─ FileHandler.save_translation_result()
+```
+
+**Recursive Translation (RecursiveTranslator)**
+```
+find_and_translate()
+  ├─ file_discovery.find_directories_with_source_file()
+  ├─ file_discovery.has_only_source_file() (filter)
+  └─ For each directory:
+      └─ TranslationOrchestrator.process_single_file()
+```
+
+**Override Application (OverrideService)**
+```
+apply_overrides()
+  ├─ file_discovery.discover_override_files()
+  └─ For each override:
+      ├─ FileHandler.load_overrides()
+      ├─ FileHandler.load_existing_translations()
+      ├─ TranslationResult (merge without translation)
+      └─ FileHandler.save_translation_result()
 ```
 
 ## Development Notes

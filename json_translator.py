@@ -10,8 +10,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import the main function from the src package
-from src.main import run_translation
+from src.cli.commands import run_translation_command
 
 if __name__ == "__main__":
     # Run the translation process
-    run_translation()
+    run_translation_command()
