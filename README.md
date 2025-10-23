@@ -11,6 +11,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON fi
 -   Translates JSON files to multiple languages simultaneously
 -   Preserves JSON structure (only translates values, not keys)
 -   Supports 40+ languages out of the box
+-   Recursive batch translation across directory hierarchies
 -   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
 -   Supports translation overrides for specific terms
@@ -87,6 +88,70 @@ python json_translator.py path/to/source.json --exclude="he,ko,ar"
 ```bash
 # Translate to all languages except Hebrew and Korean
 python json_translator.py ./locales/en.json --exclude="he,ko"
+```
+
+### Recursive Translation
+
+The `--translate-recursive` flag enables batch processing of multiple directories that contain the same source filename. This is particularly useful when you have a hierarchical directory structure where each subdirectory needs its own set of translations.
+
+```bash
+python json_translator.py "path/to/base/directory" --translate-recursive="en.json"
+```
+
+**How it works:**
+- Recursively searches all subdirectories of the specified base directory
+- Finds all directories containing the specified source file (e.g., `en.json`)
+- Filters to only directories that have **no translation files** (only the source file exists)
+- Translates each qualifying directory independently
+
+**Example use case:**
+
+If you have release notes organized by version:
+```
+release-notes/
+├── 257/
+│   └── en.json           # Has translations - SKIPPED
+│       de.json
+│       fr.json
+├── 258/
+│   └── en.json           # Has translations - SKIPPED
+│       de.json
+│       fr.json
+├── 259/
+│   └── en.json           # No translations - TRANSLATED
+```
+
+Run the recursive translation:
+```bash
+python json_translator.py "D:\project\release-notes\" --translate-recursive="en.json"
+```
+
+This will:
+1. Search all subdirectories (257, 258, 259, etc.)
+2. Find those containing `en.json`
+3. Only translate folders where **only** `en.json` exists (no `de.json`, `fr.json`, etc.)
+4. Process each qualifying directory, creating all configured language translations
+
+**Features:**
+- Automatically detects file type (JSON or ARB) from the source filename
+- Skips directories that already have translations (idempotent)
+- Processes each directory independently with full translation workflow
+- Supports all translation features (hints, overrides, language exclusions)
+- Shows progress for each directory being processed
+
+**Combining with other flags:**
+
+You can combine recursive mode with language exclusions:
+
+```bash
+# Recursively translate all subdirectories, excluding Hebrew and Korean
+python json_translator.py "D:\project\release-notes\" --translate-recursive="en.json" --exclude="he,ko"
+```
+
+**Works with ARB files too:**
+
+```bash
+python json_translator.py "D:\flutter\lib\l10n\" --translate-recursive="app_en.arb"
 ```
 
 ### Applying Overrides Only

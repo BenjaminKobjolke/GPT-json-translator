@@ -4,6 +4,7 @@ Helper functions for the JSON Translator.
 import os
 import sys
 import re
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Literal
 
 
@@ -181,3 +182,74 @@ def discover_override_files(
         return []
 
     return language_codes
+
+
+def find_directories_with_source_file(base_dir: str, source_filename: str) -> List[str]:
+    """
+    Recursively find all directories containing the specified source file.
+
+    Args:
+        base_dir: The base directory to start searching from
+        source_filename: The filename to search for (e.g., 'en.json')
+
+    Returns:
+        List of directory paths containing the source file
+    """
+    matching_dirs = []
+    base_path = Path(base_dir)
+
+    if not base_path.exists():
+        print(f"Error: Directory not found at {base_dir}")
+        return []
+
+    if not base_path.is_dir():
+        print(f"Error: Path is not a directory: {base_dir}")
+        return []
+
+    # Recursively search for the source file
+    for dirpath, _, filenames in os.walk(base_dir):
+        if source_filename in filenames:
+            matching_dirs.append(dirpath)
+
+    return matching_dirs
+
+
+def has_only_source_file(directory: str, source_filename: str, file_type: Literal['json', 'arb']) -> bool:
+    """
+    Check if a directory contains only the source file and no translation files.
+
+    Args:
+        directory: The directory to check
+        source_filename: The source filename (e.g., 'en.json' or 'app_en.arb')
+        file_type: The type of file ('json' or 'arb')
+
+    Returns:
+        True if only the source file exists (no translations), False otherwise
+    """
+    try:
+        files = os.listdir(directory)
+    except OSError as e:
+        print(f"Error reading directory {directory}: {str(e)}")
+        return False
+
+    # Filter for relevant files based on file type
+    if file_type == 'json':
+        # Look for files matching pattern: xx.json or xx-XX.json
+        translation_pattern = re.compile(r"^[a-zA-Z]{2}(?:-[a-zA-Z]{2})?\.json$")
+        relevant_files = [f for f in files if translation_pattern.match(f)]
+    elif file_type == 'arb':
+        # Look for files matching pattern: prefix_xx.arb or prefix_xx_XX.arb
+        # Extract the base pattern from source filename
+        arb_match = re.match(r"^(.*?)_[a-zA-Z]{2}(?:_[a-zA-Z]{2})?\.arb$", source_filename)
+        if arb_match:
+            base_pattern = arb_match.group(1)
+            translation_pattern = re.compile(rf"^{re.escape(base_pattern)}_[a-zA-Z]{{2}}(?:_[a-zA-Z]{{2}})?\.arb$")
+            relevant_files = [f for f in files if translation_pattern.match(f)]
+        else:
+            # Fallback if pattern doesn't match
+            relevant_files = [f for f in files if f.endswith('.arb')]
+    else:
+        return False
+
+    # Check if only the source file exists
+    return len(relevant_files) == 1 and source_filename in relevant_files

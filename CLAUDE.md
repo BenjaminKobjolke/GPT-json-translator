@@ -9,6 +9,7 @@ GPT JSON Translator automates translation of JSON files to multiple languages us
 **Key capabilities:**
 - Translates JSON values while preserving keys
 - Supports 40+ languages
+- Recursive batch translation across directory hierarchies
 - Incremental translation (only translates new/changed content)
 - Translation overrides for consistent terminology
 - Translation hints for proper names and context
@@ -32,6 +33,12 @@ python json_translator.py
 python json_translator.py path/to/source.json --exclude-languages="he,ko,ar"
 # Short alias also available
 python json_translator.py path/to/source.json --exclude="he,ko"
+
+# Recursive translation: process all subdirectories containing source file
+python json_translator.py "path/to/base/directory" --translate-recursive="en.json"
+# Only translates directories with ONLY the source file (no existing translations)
+# Combine with exclusions
+python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --exclude="he,ko"
 ```
 
 ### JSON Attribute Remover
@@ -88,15 +95,22 @@ src/
 ```
 
 ### Core Flow (src/main.py)
-1. **ArgumentParser** parses command-line arguments (input path, exclude languages)
+1. **ArgumentParser** parses command-line arguments (input path, exclude languages, recursive mode)
 2. **ConfigManager** loads settings.ini (API key, model, languages)
-3. **Language filtering** applies exclusions if `--exclude-languages` is provided
-4. **analyze_input_filename()** detects file type (JSON vs ARB) and extracts pattern
-5. **FileHandler** loads source file, existing translations, and overrides
-6. **TranslationData** extracts hints (keys starting/ending with `_`) and filters source
-7. **TranslationService.filter_keys_for_translation()** determines what needs translation
-8. Concurrent **ThreadPoolExecutor** processes each language in parallel
-9. **FileHandler** saves results with proper formatting (JSON or ARB with `@@locale`)
+3. **Recursive mode** (if `--translate-recursive` is set):
+   - **find_directories_with_source_file()** recursively searches for directories containing source file
+   - **has_only_source_file()** filters to directories with only source file (no translations)
+   - Loops through each qualifying directory and calls **process_single_file()**
+4. **Regular mode** (single file):
+   - Calls **process_single_file()** with input path
+5. **process_single_file()** workflow:
+   - **Language filtering** applies exclusions if `--exclude-languages` is provided
+   - **analyze_input_filename()** detects file type (JSON vs ARB) and extracts pattern
+   - **FileHandler** loads source file, existing translations, and overrides
+   - **TranslationData** extracts hints (keys starting/ending with `_`) and filters source
+   - **TranslationService.filter_keys_for_translation()** determines what needs translation
+   - Concurrent **ThreadPoolExecutor** processes each language in parallel
+   - **FileHandler** saves results with proper formatting (JSON or ARB with `@@locale`)
 
 ### File Type Support
 - **Standard JSON**: Files like `en.json`, outputs `de.json`, `fr.json`, etc.
@@ -246,6 +260,8 @@ The codebase follows modern Python best practices:
 - Errors isolated per language (one failure doesn't affect others)
 
 ### Data Flow
+
+**Single File Mode:**
 ```
 Input File → FileHandler.load_json_file()
            → TranslationData (extracts hints, filters source)
@@ -256,6 +272,15 @@ Input File → FileHandler.load_json_file()
                            → TranslationService.translate() (OpenAI API call)
                            → TranslationResult (merges existing + new + overrides)
               → FileHandler.save_translation_result()
+```
+
+**Recursive Mode:**
+```
+Base Directory + Source Filename
+           → find_directories_with_source_file() (recursive search)
+           → has_only_source_file() (filter directories)
+           → For each qualifying directory:
+              → process_single_file() (full translation workflow as above)
 ```
 
 ## Development Notes
