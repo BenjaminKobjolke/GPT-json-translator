@@ -5,7 +5,7 @@ import os
 import json
 import sys
 import argparse
-from typing import List, Set
+from typing import List, Set, Any, Dict, Union
 from pathlib import Path
 
 
@@ -13,20 +13,27 @@ from pathlib import Path
 SOURCE_FILE_PATTERNS = {'en.json', 'app_en.arb'}
 
 
-def load_attributes_to_remove(attributes_file: str) -> List[str]:
+def load_attributes_to_remove(attributes_file: str) -> Union[List[str], Dict[str, Any]]:
     """
-    Load the list of attributes to remove from a JSON file.
+    Load the attributes to remove from a JSON file.
+
+    Supports two formats:
+    1. List format (legacy): ["key1", "key2"] - removes top-level keys only
+    2. Dict format (nested): {"key1": true, "nested": {"key2": true}} - supports nested removal
+       - Use `true` to mark a key for removal
+       - Use `"*"` to remove all keys under a parent
+       - Nest objects to remove nested keys
 
     Args:
         attributes_file: Path to the JSON file containing attributes to remove
 
     Returns:
-        List of attribute names to remove
+        List of attribute names (legacy) or dict with nested structure (new format)
 
     Raises:
         FileNotFoundError: If the attributes file doesn't exist
         json.JSONDecodeError: If the file contains invalid JSON
-        ValueError: If the JSON doesn't contain a list
+        ValueError: If the JSON is neither a list nor a dict
     """
     attributes_path = Path(attributes_file)
 
@@ -37,8 +44,9 @@ def load_attributes_to_remove(attributes_file: str) -> List[str]:
         with attributes_path.open('r', encoding='utf-8') as file:
             attributes_to_remove = json.load(file)
 
-        if not isinstance(attributes_to_remove, list):
-            raise ValueError("Attributes file must contain a JSON array")
+        # Validate format
+        if not isinstance(attributes_to_remove, (list, dict)):
+            raise ValueError("Attributes file must contain a JSON array or object")
 
         return attributes_to_remove
 
@@ -89,16 +97,136 @@ def should_process_file(filename: str, source_patterns: Set[str]) -> bool:
     return filename.endswith('.json') and filename not in source_patterns
 
 
+def remove_attributes_recursive(
+    data: Dict[str, Any],
+    attributes_pattern: Any,
+    current_path: str = "",
+    file_name: str = ""
+) -> int:
+    """
+    Recursively remove attributes from nested JSON structure.
+
+    Args:
+        data: The JSON data to modify (dict)
+        attributes_pattern: Removal pattern (dict with nested structure, True, or "*")
+        current_path: Current path for logging (e.g., "viewSettings.imageViewer")
+        file_name: Name of file being processed (for logging)
+
+    Returns:
+        Number of attributes removed
+    """
+    removed_count = 0
+
+    # If pattern is "*", remove all keys at this level
+    if attributes_pattern == "*":
+        keys_to_remove = list(data.keys())
+        for key in keys_to_remove:
+            path = f"{current_path}.{key}" if current_path else key
+            print(f"  Removing '{path}' from {file_name}")
+            del data[key]
+            removed_count += 1
+        return removed_count
+
+    # If pattern is not a dict, nothing to process
+    if not isinstance(attributes_pattern, dict):
+        return 0
+
+    # Process each key in the attributes pattern
+    keys_to_remove = []
+    for key, pattern_value in attributes_pattern.items():
+        if key not in data:
+            continue
+
+        path = f"{current_path}.{key}" if current_path else key
+
+        # If pattern value is True, mark for removal
+        if pattern_value is True:
+            print(f"  Removing '{path}' from {file_name}")
+            keys_to_remove.append(key)
+            removed_count += 1
+
+        # If pattern value is "*", remove all nested keys
+        elif pattern_value == "*":
+            if isinstance(data[key], dict):
+                nested_removed = remove_attributes_recursive(
+                    data[key], "*", path, file_name
+                )
+                removed_count += nested_removed
+                # Mark parent for removal if it's now empty
+                if not data[key]:
+                    keys_to_remove.append(key)
+            else:
+                print(f"  Removing '{path}' from {file_name}")
+                keys_to_remove.append(key)
+                removed_count += 1
+
+        # If pattern value is a dict, recurse into nested structure
+        elif isinstance(pattern_value, dict) and isinstance(data[key], dict):
+            nested_removed = remove_attributes_recursive(
+                data[key], pattern_value, path, file_name
+            )
+            removed_count += nested_removed
+            # Mark parent for removal if it's now empty
+            if not data[key]:
+                keys_to_remove.append(key)
+
+    # Remove marked keys
+    for key in keys_to_remove:
+        del data[key]
+
+    return removed_count
+
+
+def cleanup_empty_parents(data: Dict[str, Any], file_name: str = "", current_path: str = "") -> int:
+    """
+    Recursively remove empty dict values from nested JSON structure.
+
+    Args:
+        data: The JSON data to clean
+        file_name: Name of file being processed (for logging)
+        current_path: Current path for logging
+
+    Returns:
+        Number of empty parents removed
+    """
+    removed_count = 0
+    keys_to_remove = []
+
+    for key, value in list(data.items()):
+        path = f"{current_path}.{key}" if current_path else key
+
+        if isinstance(value, dict):
+            # Recursively clean nested dicts
+            nested_removed = cleanup_empty_parents(value, file_name, path)
+            removed_count += nested_removed
+
+            # If nested dict is now empty, mark for removal
+            if not value:
+                print(f"  Cleaned up empty parent '{path}' from {file_name}")
+                keys_to_remove.append(key)
+                removed_count += 1
+
+    # Remove marked keys
+    for key in keys_to_remove:
+        del data[key]
+
+    return removed_count
+
+
 def remove_attributes_from_file(
     file_path: Path,
-    attributes_to_remove: List[str]
+    attributes_to_remove: Any
 ) -> int:
     """
     Remove specified attributes from a single JSON file.
 
+    Supports two formats:
+    1. List format (legacy): ["key1", "key2"] - removes top-level keys only
+    2. Dict format (nested): {"key1": true, "nested": {"key2": true}} - supports nested removal
+
     Args:
         file_path: Path to the JSON file
-        attributes_to_remove: List of attributes to remove
+        attributes_to_remove: List of attributes or dict with nested structure
 
     Returns:
         Number of attributes removed
@@ -117,12 +245,25 @@ def remove_attributes_from_file(
         )
 
     removed_count = 0
-    for attribute in attributes_to_remove:
-        if attribute in data:
-            print(f"  Removing '{attribute}' from {file_path.name}")
-            del data[attribute]
-            removed_count += 1
 
+    # Handle legacy list format (top-level keys only)
+    if isinstance(attributes_to_remove, list):
+        for attribute in attributes_to_remove:
+            if attribute in data:
+                print(f"  Removing '{attribute}' from {file_path.name}")
+                del data[attribute]
+                removed_count += 1
+
+    # Handle new dict format (nested structure)
+    elif isinstance(attributes_to_remove, dict):
+        removed_count = remove_attributes_recursive(
+            data, attributes_to_remove, "", file_path.name
+        )
+        # Clean up empty parents after removal
+        cleanup_count = cleanup_empty_parents(data, file_path.name)
+        removed_count += cleanup_count
+
+    # Write file if any changes were made
     if removed_count > 0:
         with file_path.open('w', encoding='utf-8') as file:
             json.dump(data, file, indent=2, ensure_ascii=False)
@@ -240,7 +381,10 @@ def main() -> None:
     )
     parser.add_argument(
         'attributes_file',
-        help='JSON file containing list of attributes to remove'
+        help='JSON file with attributes to remove. Supports two formats: '
+             '1) Simple list: ["key1", "key2"] for top-level keys. '
+             '2) Nested object: {"parent": {"child": true}} for nested keys. '
+             'Use "*" for wildcards: {"parent": "*"} removes all nested keys.'
     )
     parser.add_argument(
         '--exclude-source',

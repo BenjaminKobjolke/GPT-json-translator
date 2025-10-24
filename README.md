@@ -242,14 +242,61 @@ python json_attribute_remover.py ./locales/de.json attributes_to_remove.json
 
 #### Attributes File Format
 
-The attributes file should contain a JSON array of attribute names to remove:
+The tool supports two formats for specifying attributes to remove:
 
+**1. Simple List Format** (top-level keys only):
 ```json
 [
   "obsolete_key",
   "deprecated_field",
   "old_translation"
 ]
+```
+
+**2. Nested Object Format** (supports nested structures):
+```json
+{
+  "topLevelKey": true,
+  "viewSettings": {
+    "imageViewer": true,
+    "deprecatedOption": true
+  },
+  "removeAllNested": "*"
+}
+```
+
+**Nested format features:**
+- `true` value: Removes the specific key
+- `"*"` value: Removes all keys under the parent (wildcard)
+- Nested objects: Mirror your JSON structure to target nested keys
+- **Automatic cleanup**: Empty parent objects are removed automatically
+
+**Examples:**
+
+Remove a nested attribute:
+```json
+{
+  "viewSettings": {
+    "imageViewer": true
+  }
+}
+```
+
+Remove all keys under a parent:
+```json
+{
+  "viewSettings": "*"
+}
+```
+
+Mix top-level and nested removals:
+```json
+{
+  "topLevelKey": true,
+  "nested": {
+    "childKey": true
+  }
+}
 ```
 
 #### Common Features

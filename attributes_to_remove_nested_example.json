@@ -1,0 +1,7 @@
+{
+  "short_description": true,
+  "viewSettings": {
+    "imageViewer": true,
+    "deprecatedOption": true
+  }
+}
