@@ -193,22 +193,54 @@ python json_translator.py ./lib/l10n/app_en.arb --apply-overrides
 
 ### JSON Attribute Remover Utility
 
-The `json_attribute_remover.py` utility removes specified attributes from all translated JSON files in a directory. This is useful for cleaning up translation files by removing obsolete or unwanted keys.
+The `json_attribute_remover.py` utility removes specified attributes from JSON translation files. It supports two modes: **directory mode** and **file mode**, automatically detecting which mode to use based on the input path.
 
-**Usage:**
+#### Directory Mode
+
+Removes attributes from all JSON files in a directory, **automatically excluding `en.json`** (and optionally other source files).
 
 ```bash
-# Basic usage
+# Basic usage - always excludes en.json
 python json_attribute_remover.py path/to/directory path/to/attributes_to_remove.json
 
-# Specify custom source file to exclude
+# Exclude additional source files (e.g., ARB files)
 python json_attribute_remover.py path/to/directory attributes.json --exclude-source="app_en.arb"
-
-# Get help
-python json_attribute_remover.py --help
 ```
 
-**Attributes file format:**
+**Features:**
+- **Always excludes `en.json`** by default (no configuration needed)
+- Optionally exclude additional source files via `--exclude-source` flag
+- Processes all other JSON files in the directory
+- Useful for bulk cleanup of translation files
+
+**Example:**
+```bash
+# Removes attributes from de.json, fr.json, etc., but NOT from en.json
+python json_attribute_remover.py ./locales attributes_to_remove.json
+```
+
+#### File Mode
+
+Removes attributes from all JSON files in the directory **EXCEPT the specified file**. This mode is useful when you want to keep one specific translation file unchanged while updating all others.
+
+```bash
+# Specify a file to exclude - processes all other files including en.json
+python json_attribute_remover.py path/to/directory/de.json path/to/attributes_to_remove.json
+```
+
+**Features:**
+- Only excludes the specified file from processing
+- Processes ALL other JSON files, **including source files like `en.json`**
+- Useful when you want to preserve one specific translation
+- Automatically detects the directory from the file path
+
+**Example:**
+```bash
+# Removes attributes from en.json, fr.json, etc., but NOT from de.json
+python json_attribute_remover.py ./locales/de.json attributes_to_remove.json
+```
+
+#### Attributes File Format
 
 The attributes file should contain a JSON array of attribute names to remove:
 
@@ -220,11 +252,19 @@ The attributes file should contain a JSON array of attribute names to remove:
 ]
 ```
 
-**Features:**
-- Automatically excludes source files (`en.json`, `app_en.arb` by default)
+#### Common Features
+
+Both modes provide:
 - Only modifies files that contain the specified attributes
 - Preserves JSON formatting with proper indentation
 - Shows progress and summary statistics
+- Handles errors gracefully (one file failure doesn't stop others)
+
+#### Getting Help
+
+```bash
+python json_attribute_remover.py --help
+```
 
 #### Windows Path Issue
 

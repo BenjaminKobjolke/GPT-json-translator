@@ -9,7 +9,7 @@ from typing import List, Set
 from pathlib import Path
 
 
-# Source file patterns to exclude from processing
+# Source file patterns to always exclude from processing in directory mode
 SOURCE_FILE_PATTERNS = {'en.json', 'app_en.arb'}
 
 
@@ -47,6 +47,32 @@ def load_attributes_to_remove(attributes_file: str) -> List[str]:
             f"Failed to parse attributes file: {str(e)}",
             e.doc, e.pos
         )
+
+
+def is_file_or_directory(path: str) -> str:
+    """
+    Determine if the input path is a file or directory.
+
+    Args:
+        path: Path to check
+
+    Returns:
+        'file' if path points to a file, 'directory' if it points to a directory
+
+    Raises:
+        FileNotFoundError: If the path doesn't exist
+    """
+    path_obj = Path(path)
+
+    if not path_obj.exists():
+        raise FileNotFoundError(f"Path '{path}' does not exist")
+
+    if path_obj.is_file():
+        return 'file'
+    elif path_obj.is_dir():
+        return 'directory'
+    else:
+        raise ValueError(f"Path '{path}' is neither a file nor a directory")
 
 
 def should_process_file(filename: str, source_patterns: Set[str]) -> bool:
@@ -104,6 +130,54 @@ def remove_attributes_from_file(
     return removed_count
 
 
+def remove_attributes_excluding_file(
+    file_to_exclude: str,
+    attributes_file: str
+) -> None:
+    """
+    Remove specified attributes from all JSON files in the directory EXCEPT the specified file.
+
+    Args:
+        file_to_exclude: Path to the JSON file to exclude from processing
+        attributes_file: Path to the JSON file with attributes to remove
+
+    Raises:
+        FileNotFoundError: If file doesn't exist or directory doesn't exist
+    """
+    file_path = Path(file_to_exclude)
+
+    if not file_path.is_file():
+        raise FileNotFoundError(f"File '{file_to_exclude}' does not exist")
+
+    directory_path = file_path.parent
+    excluded_filename = file_path.name
+
+    attributes_to_remove = load_attributes_to_remove(attributes_file)
+    print(f"Loaded {len(attributes_to_remove)} attributes to remove")
+    print(f"Processing JSON files in: {directory_path}")
+    print(f"Excluding: {excluded_filename}\n")
+
+    total_files_processed = 0
+    total_attributes_removed = 0
+
+    for file_path_iter in directory_path.iterdir():
+        # Only exclude the specified file, process all other JSON files (including source files)
+        if file_path_iter.name.endswith('.json') and file_path_iter.name != excluded_filename:
+            print(f"Processing: {file_path_iter.name}")
+            try:
+                removed = remove_attributes_from_file(file_path_iter, attributes_to_remove)
+                total_files_processed += 1
+                total_attributes_removed += removed
+                if removed == 0:
+                    print(f"  No matching attributes found")
+            except Exception as e:
+                print(f"  Error processing {file_path_iter.name}: {str(e)}")
+
+    print(f"\nSummary:")
+    print(f"  Files processed: {total_files_processed}")
+    print(f"  Total attributes removed: {total_attributes_removed}")
+
+
 def remove_attributes_from_json_files(
     directory: str,
     attributes_file: str,
@@ -155,11 +229,14 @@ def remove_attributes_from_json_files(
 def main() -> None:
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
-        description='Remove specified attributes from JSON translation files'
+        description='Remove specified attributes from JSON translation files. '
+                    'Supports two modes: directory mode (excludes en.json by default) '
+                    'and file mode (excludes only the specified file).'
     )
     parser.add_argument(
-        'directory',
-        help='Directory containing JSON files to process'
+        'path',
+        help='Directory or file path. If directory: processes all JSON files except source files. '
+             'If file: processes all JSON files in the directory except the specified file.'
     )
     parser.add_argument(
         'attributes_file',
@@ -167,23 +244,41 @@ def main() -> None:
     )
     parser.add_argument(
         '--exclude-source',
-        default='en.json',
-        help='Source file pattern to exclude (default: en.json)'
+        default=None,
+        help='Additional source file pattern to exclude in directory mode (e.g., app_en.arb). '
+             'en.json is always excluded in directory mode.'
     )
 
     args = parser.parse_args()
 
     try:
-        source_patterns = {args.exclude_source}
-        remove_attributes_from_json_files(
-            args.directory,
-            args.attributes_file,
-            source_patterns
-        )
+        # Determine if path is a file or directory
+        path_type = is_file_or_directory(args.path)
+
+        if path_type == 'file':
+            # File mode: exclude only the specified file
+            remove_attributes_excluding_file(
+                args.path,
+                args.attributes_file
+            )
+        else:
+            # Directory mode: always exclude en.json, plus any additional patterns
+            source_patterns = SOURCE_FILE_PATTERNS.copy()
+            if args.exclude_source:
+                source_patterns.add(args.exclude_source)
+
+            remove_attributes_from_json_files(
+                args.path,
+                args.attributes_file,
+                source_patterns
+            )
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except json.JSONDecodeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
