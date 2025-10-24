@@ -6,6 +6,8 @@ from typing import Dict, Any, List, Optional, Literal
 
 import openai
 
+from src.utils.dict_utils import deep_diff
+
 # Note: TranslationResult is not directly used here, consider removing if not needed elsewhere
 # from src.models.translation_data import TranslationResult
 
@@ -131,6 +133,9 @@ class TranslationService:
         """
         Filter source JSON to only include keys that need translation.
 
+        This method performs deep comparison for nested objects, ensuring that
+        new nested keys are detected even if the parent key already exists.
+
         Args:
             source_json: Source JSON content
             existing_json: Existing translations
@@ -138,9 +143,10 @@ class TranslationService:
             file_type: The type of the file ('json' or 'arb')
 
         Returns:
-            Dictionary with only the keys that need translation
+            Dictionary with only the keys/nested-keys that need translation
         """
-        keys_for_translation = {}
+        # First, filter out hint keys and special keys from source
+        filtered_source = {}
         for key, value in source_json.items():
             # Skip global hint keys
             if key.startswith('_') and key.endswith('_'):
@@ -151,8 +157,14 @@ class TranslationService:
             # Skip @@locale for ARB files
             if file_type == 'arb' and key == '@@locale':
                 continue
-            # Skip keys already present in existing translations or overrides
-            if key not in existing_json and key not in overrides:
-                keys_for_translation[key] = value
+            filtered_source[key] = value
+
+        # Merge existing translations with overrides (overrides take precedence)
+        # This gives us the complete set of already-translated content
+        combined_existing = existing_json.copy()
+        combined_existing.update(overrides)
+
+        # Use deep_diff to find missing or incomplete nested keys
+        keys_for_translation = deep_diff(filtered_source, combined_existing)
 
         return keys_for_translation

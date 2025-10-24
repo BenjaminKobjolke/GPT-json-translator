@@ -9,6 +9,7 @@ GPT JSON Translator automates translation of JSON files to multiple languages us
 **Key capabilities:**
 - Translates JSON values while preserving keys
 - Supports 40+ languages
+- **Full nested object support** - detects and translates new nested keys incrementally
 - Recursive batch translation across directory hierarchies
 - Incremental translation (only translates new/changed content)
 - Translation overrides for consistent terminology
@@ -101,7 +102,8 @@ src/
     ├── path_utils.py       # Path resolution and file analysis
     ├── language_utils.py   # Language code manipulation
     ├── output_utils.py     # Console output formatting
-    └── file_discovery.py   # File system discovery
+    ├── file_discovery.py   # File system discovery
+    └── dict_utils.py       # Deep comparison and merge for nested objects
 ```
 
 ### Core Flow
@@ -147,7 +149,12 @@ The application follows a layered architecture with clear separation of concerns
 - **Field-Specific Hints**: Keys like `_hint_short_description` provide context for specific fields
 - **Overrides**: Files in `_overrides/{lang}.json` force specific translations, taking precedence
 - **Incremental**: Only translates keys missing from existing translations or overrides
+- **Nested Object Support**: Uses deep comparison (`deep_diff`) to detect missing nested keys
+  - When a nested object like `viewSettings` exists but has new nested keys (e.g., `mediaViewer`), only the new keys are sent for translation
+  - Deep merging (`deep_merge`) preserves all existing nested keys while adding new translations
+  - Works recursively for any level of nesting
 - **Merging**: Final output = existing translations + new translations + overrides (overrides win)
+  - All merging operations use deep merge to preserve nested structures
 
 ### Language Code Handling
 - Config uses full codes (`de-DE`, `fr-FR`)

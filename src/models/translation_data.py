@@ -3,6 +3,8 @@ Data models for the JSON Translator.
 """
 from typing import Dict, List, Optional, Any, Literal, Tuple
 
+from src.utils.dict_utils import deep_merge
+
 
 class TranslationData:
     """
@@ -112,15 +114,20 @@ class TranslationResult:
     def get_merged_content(self) -> Dict[str, Any]:
         """
         Merge translated content with existing content and overrides.
+
+        Uses deep merge to preserve nested structures. This ensures that when
+        translating nested objects incrementally, both old and new nested keys
+        are preserved.
+
         Overrides take precedence over both existing and translated content.
-        
+
         Returns:
-            Merged content dictionary
+            Merged content dictionary with deep merging applied
         """
         # Start with existing content
         merged = self.existing_content.copy()
-        # Add translated content (will overwrite existing keys)
-        merged.update(self.translated_content)
-        # Add overrides (will overwrite both existing and translated keys)
-        merged.update(self.overrides)
+        # Deep merge translated content (preserves nested structures)
+        merged = deep_merge(merged, self.translated_content)
+        # Deep merge overrides (will override both existing and translated keys)
+        merged = deep_merge(merged, self.overrides)
         return merged
