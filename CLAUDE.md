@@ -45,14 +45,67 @@ python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --
 ### JSON Attribute Remover
 Removes specified attributes from all translated JSON files (excluding source files):
 ```bash
-# Basic usage
+# Basic usage - directory mode
 python json_attribute_remover.py path/to/directory path/to/attributes_to_remove.json
 
-# Specify custom source file to exclude
+# File mode - processes all JSON files in the directory except the specified file
+python json_attribute_remover.py path/to/en.json path/to/attributes_to_remove.json
+
+# Specify custom source file to exclude in directory mode
 python json_attribute_remover.py path/to/directory attributes.json --exclude-source="app_en.arb"
 
 # Get help
 python json_attribute_remover.py --help
+```
+
+**Attributes file format:**
+
+The attributes file supports two formats:
+
+1. **Simple list** (removes top-level keys only):
+```json
+["key1", "key2", "key3"]
+```
+
+2. **Nested object** (supports nested key removal):
+```json
+{
+  "topLevelKey": true,
+  "errors": true,
+  "settings": {
+    "theme": true,
+    "language": true
+  },
+  "viewSettings": "*"
+}
+```
+
+**Format rules:**
+- Use `true` to remove an entire key/block
+- Use `"*"` to remove all nested keys under a parent
+- Use nested objects `{}` to specify which nested keys to remove
+- **Important:** Empty objects `{}` won't remove anything - use `true` instead
+
+**Examples:**
+
+Remove entire "errors" block:
+```json
+{"errors": true}
+```
+
+Remove specific nested keys only:
+```json
+{
+  "settings": {
+    "theme": true,
+    "advanced": true
+  }
+}
+```
+
+Remove all keys under "deprecated":
+```json
+{"deprecated": "*"}
 ```
 
 ### Batch Files
