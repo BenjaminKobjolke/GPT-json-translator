@@ -2,6 +2,7 @@
 Translation orchestration service for coordinating the translation workflow.
 """
 import concurrent.futures
+import json
 from typing import Dict, Any, List, Optional
 
 from src.config import ConfigManager
@@ -115,11 +116,19 @@ class TranslationOrchestrator:
         # Analyze the input filename
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
 
-        # Load source JSON/ARB content
+        # Load and validate source JSON/ARB content
+        print("Validating source file...")
         try:
             source_json = FileHandler.load_json_file(input_path)
+            print("[OK] Source file validation passed")
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] JSON syntax error: {str(e)}")
+            return
+        except ValueError as e:
+            print(f"[ERROR] {str(e)}")
+            return
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"[ERROR] Error: {str(e)}")
             return
 
         # Filter languages based on exclusions

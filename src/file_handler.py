@@ -6,6 +6,7 @@ import os
 from typing import Dict, Any, Optional, Literal
 
 from src.models.translation_data import TranslationResult
+from src.utils.validation_utils import DuplicateKeyDetector
 
 
 class FileHandler:
@@ -45,36 +46,48 @@ class FileHandler:
             raise ValueError(f"Unsupported file type: {file_type}")
 
     @staticmethod
-    def load_json_file(file_path: str) -> Dict[str, Any]:
+    def load_json_file(file_path: str, validate_duplicates: bool = True) -> Dict[str, Any]:
         """
-        Load and parse a JSON file.
-        
+        Load and parse a JSON file with optional duplicate key validation.
+
         Args:
             file_path: Path to the JSON file
-            
+            validate_duplicates: If True, detect and reject duplicate keys (default: True)
+
         Returns:
             Parsed JSON content as a dictionary
-            
+
         Raises:
             FileNotFoundError: If the file doesn't exist
             PermissionError: If the file can't be read due to permissions
             json.JSONDecodeError: If the file contains invalid JSON
+            ValueError: If duplicate keys are detected (when validate_duplicates=True)
             IOError: For other I/O related errors
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Path not found at {file_path}")
-            
+
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                content = f.read()
+
+            if validate_duplicates:
+                # Use enhanced duplicate detection with line numbers
+                decoder = DuplicateKeyDetector(source=content)
+                return decoder.decode(content)
+            else:
+                return json.loads(content)
         except PermissionError:
             raise PermissionError(f"Permission denied: Unable to read the file {file_path}")
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(
-                f"Error parsing JSON file {file_path}: {str(e)}", 
-                e.doc, 
+                f"Error parsing JSON file {file_path}: {str(e)}",
+                e.doc,
                 e.pos
             )
+        except ValueError as e:
+            # Duplicate key error from DuplicateKeyDetector
+            raise ValueError(f"Validation error in {file_path}: {str(e)}")
         except IOError as e:
             raise IOError(f"Error reading file {file_path}: {str(e)}")
     
