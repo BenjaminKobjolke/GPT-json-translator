@@ -17,8 +17,9 @@ class TranslationData:
         source_json: Dict[str, Any],
         target_languages: List[str],
         input_path: str,
-        file_type: Literal['json', 'arb'],
-        filename_pattern: Optional[str] = None
+        file_type: Literal['json', 'arb', 'xml'],
+        filename_pattern: Optional[str] = None,
+        xml_source_root: Any = None
     ):
         """
         Initialize the TranslationData object.
@@ -27,14 +28,17 @@ class TranslationData:
             source_json: The source JSON content to be translated
             target_languages: List of target languages for translation
             input_path: Path to the source JSON file
-            file_type: The type of the input file ('json' or 'arb')
+            file_type: The type of the input file ('json', 'arb', or 'xml')
             filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
+                            or the filename for XML files (e.g., 'strings.xml')
+            xml_source_root: For XML files, the parsed XML root element
         """
         self.source_json = source_json
         self.target_languages = target_languages
         self.input_path = input_path
         self.file_type = file_type
         self.filename_pattern = filename_pattern
+        self.xml_source_root = xml_source_root
         self.global_hints, self.field_hints = self._extract_hints()
     
     def _extract_hints(self) -> Tuple[Dict[str, str], Dict[str, str]]:

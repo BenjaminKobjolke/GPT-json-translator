@@ -128,7 +128,7 @@ class TranslationService:
         source_json: Dict[str, Any],
         existing_json: Dict[str, Any],
         overrides: Dict[str, Any],
-        file_type: Literal['json', 'arb'] # Add file_type parameter
+        file_type: Literal['json', 'arb', 'xml']
     ) -> Dict[str, Any]:
         """
         Filter source JSON to only include keys that need translation.
@@ -140,7 +140,7 @@ class TranslationService:
             source_json: Source JSON content
             existing_json: Existing translations
             overrides: Override values
-            file_type: The type of the file ('json' or 'arb')
+            file_type: The type of the file ('json', 'arb', or 'xml')
 
         Returns:
             Dictionary with only the keys/nested-keys that need translation

@@ -89,12 +89,13 @@ class TranslationOrchestrator:
                 overrides=overrides
             )
 
-            # Save the result (pass file type info)
+            # Save the result (pass file type info and xml_source_root for XML files)
             FileHandler.save_translation_result(
                 result,
                 translation_data.input_path,
                 translation_data.file_type,
-                translation_data.filename_pattern
+                translation_data.filename_pattern,
+                xml_source_root=translation_data.xml_source_root
             )
 
             return None
@@ -109,18 +110,27 @@ class TranslationOrchestrator:
         Process translation for a single source file.
 
         Args:
-            input_path: Path to the source JSON/ARB file
+            input_path: Path to the source JSON/ARB/XML file
             config: Configuration dictionary from ConfigManager
             excluded_languages: Optional list of language codes to exclude
         """
         # Analyze the input filename
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
 
-        # Load and validate source JSON/ARB content
+        # Load and validate source content
         print("Validating source file...")
+        xml_source_root = None
+
         try:
-            source_json = FileHandler.load_json_file(input_path)
-            print("[OK] Source file validation passed")
+            if file_type == 'xml':
+                # Load XML file
+                from src.utils.xml_handler import load_android_xml
+                source_json, xml_source_root = load_android_xml(input_path)
+                print("[OK] Source XML file validation passed")
+            else:
+                # Load JSON/ARB file
+                source_json = FileHandler.load_json_file(input_path)
+                print("[OK] Source file validation passed")
         except json.JSONDecodeError as e:
             print(f"[ERROR] JSON syntax error: {str(e)}")
             return
@@ -142,7 +152,8 @@ class TranslationOrchestrator:
             target_languages=target_languages,
             input_path=input_path,
             file_type=file_type,
-            filename_pattern=filename_pattern
+            filename_pattern=filename_pattern,
+            xml_source_root=xml_source_root
         )
 
         # Print hints summary
@@ -174,12 +185,13 @@ class TranslationOrchestrator:
                 try:
                     result = future.result()
                     if result:
-                        # Save the result
+                        # Save the result (pass xml_source_root for XML files)
                         FileHandler.save_translation_result(
                             result,
                             translation_data.input_path,
                             translation_data.file_type,
-                            translation_data.filename_pattern
+                            translation_data.filename_pattern,
+                            xml_source_root=translation_data.xml_source_root
                         )
                 except Exception as e:
                     print(f"Error processing translation for {target_language}:")

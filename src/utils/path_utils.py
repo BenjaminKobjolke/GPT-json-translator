@@ -41,7 +41,7 @@ def get_input_path(cli_arg: Optional[str] = None, config_path: Optional[str] = N
     return input_path
 
 
-def analyze_input_filename(file_path: str) -> Tuple[Literal['json', 'arb'], Optional[str], Optional[str]]:
+def analyze_input_filename(file_path: str) -> Tuple[Literal['json', 'arb', 'xml'], Optional[str], Optional[str]]:
     """
     Analyzes the input filename to determine file type, source language, and pattern.
 
@@ -50,9 +50,9 @@ def analyze_input_filename(file_path: str) -> Tuple[Literal['json', 'arb'], Opti
 
     Returns:
         A tuple containing:
-        - file_type: 'json' or 'arb'
-        - source_language: The detected language code (e.g., 'en', 'en-US')
-        - filename_pattern: The pattern (e.g., 'app_{lang}.arb') if ARB, else None.
+        - file_type: 'json', 'arb', or 'xml'
+        - source_language: The detected language code (e.g., 'en', 'en-US'), or None for XML
+        - filename_pattern: The pattern (e.g., 'app_{lang}.arb') if ARB, filename if XML, else None.
     """
     filename = os.path.basename(file_path)
     # Regex to match 'app_{lang}.arb' pattern
@@ -72,6 +72,15 @@ def analyze_input_filename(file_path: str) -> Tuple[Literal['json', 'arb'], Opti
         else:
             # JSON file without language code in name
             return 'json', None, None
+    elif filename.lower().endswith('.xml'):
+        # Android XML string files (e.g., res/values/strings.xml)
+        parent_dir = os.path.basename(os.path.dirname(file_path))
+        if parent_dir == 'values':
+            # Standard Android values directory, source language assumed to be default
+            return 'xml', None, filename
+        else:
+            print(f"Warning: XML file not in 'values/' directory: {filename}")
+            return 'xml', None, filename
     else:
         # Default or handle other cases if necessary
         print(f"Warning: Unrecognized file format for {filename}. Assuming standard JSON.")

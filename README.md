@@ -1,22 +1,23 @@
 # GPT JSON Translator
 
-A powerful tool for translating JSON files to multiple languages using OpenAI's GPT models.
+A powerful tool for translating JSON and Android XML files to multiple languages using OpenAI's GPT models.
 
 ## Overview
 
-GPT JSON Translator is a Python script that automates the translation of JSON files to multiple languages. It uses OpenAI's GPT models to provide high-quality translations while preserving the structure of your JSON files. The tool is particularly useful for localizing applications, websites, or any content stored in JSON format.
+GPT JSON Translator is a Python script that automates the translation of JSON and Android XML string files to multiple languages. It uses OpenAI's GPT models to provide high-quality translations while preserving the structure of your files. The tool is particularly useful for localizing applications, websites, or any content stored in JSON or Android XML format.
 
 ## Features
 
--   Translates JSON files to multiple languages simultaneously
--   Preserves JSON structure (only translates values, not keys)
+-   Translates JSON and Android XML files to multiple languages simultaneously
+-   Preserves file structure (only translates values, not keys)
 -   Supports 40+ languages out of the box
 -   Recursive batch translation across directory hierarchies
 -   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
 -   Supports translation overrides for specific terms
 -   Provides global and field-specific translation hints
--   Supports both standard JSON and Flutter ARB file formats
+-   Supports standard JSON, Flutter ARB, and Android XML file formats
+-   Android XML: Automatically excludes `translatable="false"` elements
 
 ## Requirements
 
@@ -152,6 +153,82 @@ python json_translator.py "D:\project\release-notes\" --translate-recursive="en.
 
 ```bash
 python json_translator.py "D:\flutter\lib\l10n\" --translate-recursive="app_en.arb"
+```
+
+### Android XML Translation
+
+The tool supports Android `strings.xml` files with automatic language-specific directory output following Android conventions.
+
+#### Basic Usage
+
+```bash
+python json_translator.py "path/to/res/values/strings.xml"
+```
+
+#### How it works
+
+- **Input:** Source file in `res/values/strings.xml`
+- **Output:** Translated files in language-specific directories:
+  - `res/values-de/strings.xml` (German)
+  - `res/values-fr/strings.xml` (French)
+  - `res/values-es/strings.xml` (Spanish)
+  - etc.
+
+#### Supported Elements
+
+The tool translates the following Android XML elements:
+- `<string name="key">value</string>` - Simple strings
+- `<string-array name="key">` - String arrays with multiple `<item>` elements
+- `<plurals name="key">` - Plural strings with quantity variations
+
+#### Non-translatable Elements
+
+Elements marked with `translatable="false"` are **completely excluded** from output files:
+
+```xml
+<!-- Source: values/strings.xml -->
+<resources>
+    <string name="app_name" translatable="false">MyApp</string>
+    <string name="welcome">Welcome!</string>
+</resources>
+
+<!-- Output: values-de/strings.xml -->
+<resources>
+    <string name="welcome">Willkommen!</string>
+</resources>
+```
+
+The `app_name` element is excluded because it has `translatable="false"`.
+
+#### Directory Structure
+
+```
+android/app/src/main/res/
+├── values/
+│   ├── strings.xml           # Source file (default language)
+│   └── _overrides/           # Optional overrides
+│       └── values-de/
+│           └── strings.xml   # German overrides
+├── values-de/
+│   └── strings.xml           # German translation (auto-generated)
+├── values-fr/
+│   └── strings.xml           # French translation (auto-generated)
+└── values-es/
+    └── strings.xml           # Spanish translation (auto-generated)
+```
+
+#### Incremental Translation
+
+Like JSON files, Android XML translations are incremental:
+- Existing translations in `values-{lang}/strings.xml` are preserved
+- Only new or missing strings are translated
+- Override files take precedence over both existing and new translations
+
+#### Example with Language Exclusions
+
+```bash
+# Translate to all languages except Hebrew, Korean, and Arabic
+python json_translator.py "D:\project\android\app\src\main\res\values\strings.xml" --exclude="he,ko,ar"
 ```
 
 ### Applying Overrides Only
@@ -436,9 +513,16 @@ GPT-json-translator/
 │   ├── models/               # Data models
 │   │   ├── __init__.py
 │   │   └── translation_data.py
+│   ├── services/             # Business logic services
+│   │   ├── translation_orchestrator.py
+│   │   ├── override_service.py
+│   │   └── recursive_translator.py
 │   └── utils/                # Utility functions
 │       ├── __init__.py
-│       └── helpers.py
+│       ├── path_utils.py     # Path and filename utilities
+│       ├── language_utils.py # Language code handling
+│       ├── dict_utils.py     # Deep merge/diff utilities
+│       └── xml_handler.py    # Android XML file handling
 ├── locales/                  # Translation files directory
 │   ├── en.json               # Source file (English)
 │   ├── de.json               # German translation
