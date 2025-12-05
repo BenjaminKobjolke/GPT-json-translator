@@ -64,7 +64,7 @@ def _handle_apply_overrides(args) -> None:
     input_path = get_input_path(args.input_path, config["source_path"])
 
     # Apply overrides
-    OverrideService.apply_overrides(input_path)
+    OverrideService.apply_overrides(input_path, use_cdata=args.use_cdata)
 
 
 def _handle_recursive_translation(args, config, excluded_languages: Optional[List[str]]) -> None:
@@ -86,7 +86,8 @@ def _handle_recursive_translation(args, config, excluded_languages: Optional[Lis
         base_dir,
         source_filename,
         config,
-        excluded_languages
+        excluded_languages,
+        use_cdata=args.use_cdata
     )
 
 
@@ -103,7 +104,9 @@ def _handle_single_file_translation(args, config, excluded_languages: Optional[L
     input_path = get_input_path(args.input_path, config["source_path"])
 
     # Process the single file
-    TranslationOrchestrator.process_single_file(input_path, config, excluded_languages)
+    TranslationOrchestrator.process_single_file(
+        input_path, config, excluded_languages, use_cdata=args.use_cdata
+    )
 
     print("Translation process complete.")
 

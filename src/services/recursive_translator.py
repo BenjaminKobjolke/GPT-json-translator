@@ -20,7 +20,8 @@ class RecursiveTranslator:
         base_dir: str,
         source_filename: str,
         config: Dict[str, Any],
-        excluded_languages: Optional[List[str]] = None
+        excluded_languages: Optional[List[str]] = None,
+        use_cdata: bool = False
     ) -> None:
         """
         Find directories with untranslated source files and translate them.
@@ -30,6 +31,7 @@ class RecursiveTranslator:
             source_filename: Source filename to search for (e.g., 'en.json')
             config: Configuration dictionary
             excluded_languages: Optional list of language codes to exclude
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
         """
         # Validate base directory
         if not os.path.exists(base_dir):
@@ -78,7 +80,8 @@ class RecursiveTranslator:
             dirs_to_process,
             source_filename,
             config,
-            excluded_languages
+            excluded_languages,
+            use_cdata
         )
 
     @staticmethod
@@ -109,7 +112,8 @@ class RecursiveTranslator:
         directories: List[str],
         source_filename: str,
         config: Dict[str, Any],
-        excluded_languages: Optional[List[str]]
+        excluded_languages: Optional[List[str]],
+        use_cdata: bool = False
     ) -> None:
         """
         Process a batch of directories for translation.
@@ -119,6 +123,7 @@ class RecursiveTranslator:
             source_filename: Source filename
             config: Configuration dictionary
             excluded_languages: Optional list of language codes to exclude
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
         """
         processed_count = 0
 
@@ -131,7 +136,8 @@ class RecursiveTranslator:
                 TranslationOrchestrator.process_single_file(
                     source_file_path,
                     config,
-                    excluded_languages
+                    excluded_languages,
+                    use_cdata
                 )
                 processed_count += 1
                 print()

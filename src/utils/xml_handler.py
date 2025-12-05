@@ -142,24 +142,112 @@ def build_translated_xml(
     return new_root
 
 
-def save_android_xml(root: ET.Element, file_path: str) -> None:
+def save_android_xml(root: ET.Element, file_path: str, use_cdata: bool = False) -> None:
     """
     Save XML element tree to file with proper formatting.
 
     Args:
         root: XML root element to save
         file_path: Destination path
+        use_cdata: If True, wrap string values in CDATA sections.
+                   If False (default), escape quotes with backslashes.
     """
     # Ensure the directory exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    dir_path = os.path.dirname(file_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
 
-    # Add indentation for readability
-    _indent_xml(root)
+    # Write XML manually
+    lines = ['<?xml version="1.0" encoding="utf-8"?>']
+    lines.append('<resources>')
 
-    # Create tree and write with XML declaration
-    tree = ET.ElementTree(root)
-    with open(file_path, 'wb') as f:
-        tree.write(f, encoding='utf-8', xml_declaration=True)
+    for elem in root:
+        name = elem.get('name')
+        if not name:
+            continue
+
+        if elem.tag == 'string':
+            text = elem.text or ''
+            formatted_text = _format_text(text, use_cdata)
+            lines.append(f'    <string name="{_escape_attr(name)}">{formatted_text}</string>')
+
+        elif elem.tag == 'string-array':
+            lines.append(f'    <string-array name="{_escape_attr(name)}">')
+            for item in elem.findall('item'):
+                text = item.text or ''
+                formatted_text = _format_text(text, use_cdata)
+                lines.append(f'        <item>{formatted_text}</item>')
+            lines.append('    </string-array>')
+
+        elif elem.tag == 'plurals':
+            lines.append(f'    <plurals name="{_escape_attr(name)}">')
+            for item in elem.findall('item'):
+                quantity = item.get('quantity', '')
+                text = item.text or ''
+                formatted_text = _format_text(text, use_cdata)
+                lines.append(f'        <item quantity="{_escape_attr(quantity)}">{formatted_text}</item>')
+            lines.append('    </plurals>')
+
+    lines.append('</resources>')
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+
+
+def _format_text(text: str, use_cdata: bool) -> str:
+    """
+    Format text for XML output.
+
+    Args:
+        text: The text content to format
+        use_cdata: If True, wrap in CDATA. If False, escape quotes.
+
+    Returns:
+        Formatted text suitable for XML element content
+    """
+    if use_cdata:
+        return f'<![CDATA[{text}]]>'
+    else:
+        return _escape_text(text)
+
+
+def _escape_text(text: str) -> str:
+    """
+    Escape special characters in XML text content.
+
+    Escapes quotes with backslashes for Android string resources.
+
+    Args:
+        text: Text to escape
+
+    Returns:
+        Escaped string safe for XML text content
+    """
+    # Escape quotes with backslashes (Android convention)
+    text = text.replace("'", "\\'")
+    text = text.replace('"', '\\"')
+    # Also escape standard XML entities
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    return text
+
+
+def _escape_attr(value: str) -> str:
+    """
+    Escape special characters in XML attribute values.
+
+    Args:
+        value: Attribute value to escape
+
+    Returns:
+        Escaped string safe for XML attributes
+    """
+    return (value
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('"', '&quot;'))
 
 
 def _indent_xml(elem: ET.Element, level: int = 0) -> None:

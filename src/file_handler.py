@@ -240,7 +240,8 @@ class FileHandler:
         base_path: str,
         file_type: Literal['json', 'arb', 'xml'],
         filename_pattern: Optional[str] = None,
-        xml_source_root: Any = None
+        xml_source_root: Any = None,
+        use_cdata: bool = False
     ) -> None:
         """
         Save a translation result to a file, handling different file types.
@@ -252,6 +253,7 @@ class FileHandler:
             filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
                             or the filename for XML files (e.g., 'strings.xml')
             xml_source_root: For XML files, the source XML root element (required for XML)
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
         """
         content_to_save = result.get_merged_content()
 
@@ -271,7 +273,7 @@ class FileHandler:
                 # Build translated XML tree
                 translated_root = build_translated_xml(xml_source_root, content_to_save)
                 # Save to file
-                save_android_xml(translated_root, output_path)
+                save_android_xml(translated_root, output_path, use_cdata=use_cdata)
                 print(f"Output file saved as {output_path}")
             except Exception as e:
                 print(f"Error saving XML translation file for {result.language_code}:")

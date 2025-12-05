@@ -38,4 +38,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='Recursively search for subdirectories containing FILENAME and translate if no translations exist (e.g., "en.json")'
     )
 
+    parser.add_argument(
+        '--use-cdata',
+        action='store_true',
+        help='For XML files: wrap string values in CDATA sections instead of escaping quotes'
+    )
+
     return parser

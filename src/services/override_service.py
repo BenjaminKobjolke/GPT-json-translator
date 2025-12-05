@@ -14,12 +14,13 @@ class OverrideService:
     """
 
     @staticmethod
-    def apply_overrides(input_path: str) -> None:
+    def apply_overrides(input_path: str, use_cdata: bool = False) -> None:
         """
         Apply override files to translation files.
 
         Args:
             input_path: Path to the source JSON/ARB file
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
         """
         # Analyze the input filename to determine file type and pattern
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
@@ -74,7 +75,8 @@ class OverrideService:
                 result,
                 input_path,
                 file_type,
-                filename_pattern
+                filename_pattern,
+                use_cdata=use_cdata
             )
 
             applied_count += 1

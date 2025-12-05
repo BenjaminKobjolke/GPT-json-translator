@@ -181,6 +181,30 @@ The tool translates the following Android XML elements:
 - `<string-array name="key">` - String arrays with multiple `<item>` elements
 - `<plurals name="key">` - Plural strings with quantity variations
 
+#### Quote Handling
+
+By default, quotes in translated strings are escaped with backslashes (Android convention):
+
+```xml
+<string name="welcome">Hello \"World\" and it\'s great</string>
+```
+
+If you prefer CDATA sections instead, use the `--use-cdata` flag:
+
+```bash
+python json_translator.py "path/to/res/values/strings.xml" --use-cdata
+```
+
+This produces:
+
+```xml
+<string name="welcome"><![CDATA[Hello "World" and it's great]]></string>
+```
+
+**When to use each approach:**
+- **Default (escaped quotes):** Standard Android convention, works everywhere
+- **CDATA sections:** Useful when strings contain complex HTML or many special characters
+
 #### Non-translatable Elements
 
 Elements marked with `translatable="false"` are **completely excluded** from output files:

@@ -23,7 +23,8 @@ class TranslationOrchestrator:
     def process_language(
         translation_service: TranslationService,
         translation_data: TranslationData,
-        target_language: str
+        target_language: str,
+        use_cdata: bool = False
     ) -> Optional[TranslationResult]:
         """
         Process translation for a single language.
@@ -32,6 +33,7 @@ class TranslationOrchestrator:
             translation_service: The translation service to use
             translation_data: The translation data object
             target_language: The target language code
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
 
         Returns:
             TranslationResult object if translation was performed, None otherwise
@@ -95,7 +97,8 @@ class TranslationOrchestrator:
                 translation_data.input_path,
                 translation_data.file_type,
                 translation_data.filename_pattern,
-                xml_source_root=translation_data.xml_source_root
+                xml_source_root=translation_data.xml_source_root,
+                use_cdata=use_cdata
             )
 
             return None
@@ -104,7 +107,8 @@ class TranslationOrchestrator:
     def process_single_file(
         input_path: str,
         config: Dict[str, Any],
-        excluded_languages: Optional[List[str]] = None
+        excluded_languages: Optional[List[str]] = None,
+        use_cdata: bool = False
     ) -> None:
         """
         Process translation for a single source file.
@@ -113,6 +117,7 @@ class TranslationOrchestrator:
             input_path: Path to the source JSON/ARB/XML file
             config: Configuration dictionary from ConfigManager
             excluded_languages: Optional list of language codes to exclude
+            use_cdata: For XML files, wrap strings in CDATA sections (default: False)
         """
         # Analyze the input filename
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
@@ -175,7 +180,8 @@ class TranslationOrchestrator:
                     TranslationOrchestrator.process_language,
                     translation_service,
                     translation_data,
-                    target_language
+                    target_language,
+                    use_cdata
                 )
                 future_to_language[future] = target_language
 
@@ -191,7 +197,8 @@ class TranslationOrchestrator:
                             translation_data.input_path,
                             translation_data.file_type,
                             translation_data.filename_pattern,
-                            xml_source_root=translation_data.xml_source_root
+                            xml_source_root=translation_data.xml_source_root,
+                            use_cdata=use_cdata
                         )
                 except Exception as e:
                     print(f"Error processing translation for {target_language}:")
