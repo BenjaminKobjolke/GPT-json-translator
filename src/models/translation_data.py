@@ -19,7 +19,9 @@ class TranslationData:
         input_path: str,
         file_type: Literal['json', 'arb', 'xml'],
         filename_pattern: Optional[str] = None,
-        xml_source_root: Any = None
+        xml_source_root: Any = None,
+        second_input_json: Optional[Dict[str, Any]] = None,
+        second_language_code: Optional[str] = None
     ):
         """
         Initialize the TranslationData object.
@@ -32,6 +34,8 @@ class TranslationData:
             filename_pattern: The filename pattern for ARB files (e.g., 'app_{lang}.arb')
                             or the filename for XML files (e.g., 'strings.xml')
             xml_source_root: For XML files, the parsed XML root element
+            second_input_json: Optional second language content for dual-language translation
+            second_language_code: Language code of the second input (e.g., 'de')
         """
         self.source_json = source_json
         self.target_languages = target_languages
@@ -39,6 +43,8 @@ class TranslationData:
         self.file_type = file_type
         self.filename_pattern = filename_pattern
         self.xml_source_root = xml_source_root
+        self.second_input_json = second_input_json
+        self.second_language_code = second_language_code
         self.global_hints, self.field_hints = self._extract_hints()
     
     def _extract_hints(self) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -87,6 +93,59 @@ class TranslationData:
             elif key.startswith('_hint_'):
                 filtered_data.pop(key, None)
         return filtered_data
+
+    def build_dual_language_content(
+        self,
+        keys_for_translation: Dict[str, Any]
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        """
+        Build content with second language values appended for dual-language translation.
+
+        For each key to translate, adds a corresponding key with suffix (e.g., "_de")
+        containing the second language translation if available.
+
+        Args:
+            keys_for_translation: Dictionary of keys that need translation
+
+        Returns:
+            Tuple of (augmented_content, missing_keys) where:
+            - augmented_content: Dict with original keys plus second language suffix keys
+            - missing_keys: List of keys that exist in source but not in second input
+        """
+        if not self.second_input_json or not self.second_language_code:
+            return keys_for_translation, []
+
+        lang_suffix = f"_{self.second_language_code}"
+        missing_keys: List[str] = []
+
+        def process_dict(
+            source: Dict[str, Any],
+            second: Dict[str, Any],
+            path: str = ""
+        ) -> Dict[str, Any]:
+            """Recursively process nested dictionaries."""
+            result = {}
+            for key, value in source.items():
+                full_path = f"{path}{key}" if path else key
+
+                if key in second:
+                    second_value = second[key]
+                    if isinstance(value, dict) and isinstance(second_value, dict):
+                        # Recursively process nested dicts
+                        result[key] = process_dict(value, second_value, f"{full_path}.")
+                    else:
+                        # Add the original key first, then the second language value
+                        result[key] = value
+                        result[f"{key}{lang_suffix}"] = second_value
+                else:
+                    # Key missing in second input
+                    result[key] = value
+                    missing_keys.append(full_path)
+
+            return result
+
+        augmented = process_dict(keys_for_translation, self.second_input_json)
+        return augmented, missing_keys
 
 
 class TranslationResult:

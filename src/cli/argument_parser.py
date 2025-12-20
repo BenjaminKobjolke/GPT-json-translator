@@ -44,4 +44,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='For XML files: wrap string values in CDATA sections instead of escaping quotes'
     )
 
+    parser.add_argument(
+        '--second-input',
+        metavar='PATH',
+        help='Path to a second language file (e.g., de.json) for dual-language translation context. '
+             'The AI uses both sources for better translations. This file will NOT be overwritten.'
+    )
+
     return parser

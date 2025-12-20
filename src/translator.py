@@ -73,7 +73,8 @@ class TranslationService:
         target_lang: str,
         content_to_translate: Dict[str, Any],
         global_hints: Optional[Dict[str, str]] = None,
-        field_hints: Optional[Dict[str, str]] = None
+        field_hints: Optional[Dict[str, str]] = None,
+        second_language_code: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Translate content to the target language.
@@ -83,6 +84,7 @@ class TranslationService:
             content_to_translate: Dictionary of content to translate
             global_hints: Optional global translation hints
             field_hints: Optional field-specific translation hints
+            second_language_code: Optional second language code for dual-language mode
 
         Returns:
             Dictionary of translated content
@@ -95,6 +97,20 @@ class TranslationService:
         if hints_text:
             print(f"Hints: {hints_text}")
 
+        # Build the prompt based on whether dual-language mode is active
+        if second_language_code:
+            dual_lang_instruction = (
+                f"\n\nIMPORTANT: For each key, you may find a corresponding key with the suffix '_{second_language_code}' "
+                f"(e.g., 'greeting' and 'greeting_{second_language_code}'). "
+                f"The '_{second_language_code}' key contains the {second_language_code.upper()} translation of the original value. "
+                f"Use BOTH the original English value AND the {second_language_code.upper()} translation to inform your translation to {target_lang}. "
+                f"This dual-source approach helps produce more accurate and natural translations. "
+                f"In your output, only include the original keys (WITHOUT the '_{second_language_code}' suffix) with their translations."
+            )
+            prompt = f"{hints_text}Translate the following JSON to {target_lang}:{dual_lang_instruction}\n\n{content_to_translate}\n"
+        else:
+            prompt = f"{hints_text}Translate the following JSON to {target_lang}:\n\n{content_to_translate}\n"
+
         try:
             # Call OpenAI API to translate text
             completion = openai.chat.completions.create(
@@ -104,7 +120,7 @@ class TranslationService:
                     {"role": "system", "content": self.SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": f"{hints_text}Translate the following JSON to {target_lang}:\n\n{content_to_translate}\n",
+                        "content": prompt,
                     },
                 ],
             )

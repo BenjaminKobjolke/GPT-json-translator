@@ -9,6 +9,7 @@ GPT JSON Translator automates translation of JSON files to multiple languages us
 **Key capabilities:**
 - Translates JSON values while preserving keys
 - Supports 40+ languages
+- **Dual-language mode** - use two source languages for better translation quality
 - **Full nested object support** - detects and translates new nested keys incrementally
 - Recursive batch translation across directory hierarchies
 - Incremental translation (only translates new/changed content)
@@ -40,6 +41,13 @@ python json_translator.py "path/to/base/directory" --translate-recursive="en.jso
 # Only translates directories with ONLY the source file (no existing translations)
 # Combine with exclusions
 python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --exclude="he,ko"
+
+# Dual-language mode: use two source languages for better translations
+# The AI receives both English and German to produce better translations for other languages
+python json_translator.py path/to/en.json --second-input="path/to/de.json"
+# The second language file (de.json) will NOT be overwritten
+# Works with recursive mode - same second input used for all directories
+python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --second-input="D:\de.json"
 ```
 
 ### JSON Attribute Remover
@@ -221,6 +229,17 @@ The application follows a layered architecture with clear separation of concerns
 - Filters languages by comparing base codes (so `he` excludes `he-IL`)
 - Applied after loading config, before creating TranslationData
 - Useful when settings.ini has no languages specified (translates all by default)
+
+### Dual-Language Mode
+Provides two source languages to the AI for improved translation quality:
+- **Command-line flag**: `--second-input="path/to/de.json"`
+- **How it works**: For each key, the AI receives both the primary (e.g., English) and second (e.g., German) values
+- **Content sent to AI**: `{"greeting": "Hello", "greeting_de": "Hallo"}`
+- **Prompt instructs AI**: Use both sources to produce more accurate translations
+- **Auto-exclusion**: Second language is automatically excluded from translation targets
+- **Missing keys**: If a key exists in primary but not in second input, a warning is printed and the key is translated from primary only
+- **Recursive mode**: Same second input file is used for all directories
+- **Benefit**: Seeing how a phrase was translated to a related language helps the AI understand nuance and context
 
 ## Directory Structure Expectations
 

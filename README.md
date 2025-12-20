@@ -11,6 +11,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON an
 -   Translates JSON and Android XML files to multiple languages simultaneously
 -   Preserves file structure (only translates values, not keys)
 -   Supports 40+ languages out of the box
+-   **Dual-language mode** - use two source languages for improved translation quality
 -   Recursive batch translation across directory hierarchies
 -   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
@@ -89,6 +90,54 @@ python json_translator.py path/to/source.json --exclude="he,ko,ar"
 ```bash
 # Translate to all languages except Hebrew and Korean
 python json_translator.py ./locales/en.json --exclude="he,ko"
+```
+
+### Dual-Language Mode
+
+The `--second-input` flag enables dual-language translation, where the AI receives both your primary source (e.g., English) and a second language (e.g., German) to produce better translations for other languages. This is particularly useful when you have a high-quality human translation in one language that can help inform translations to other languages.
+
+```bash
+python json_translator.py path/to/en.json --second-input="path/to/de.json"
+```
+
+**How it works:**
+- For each key, the AI receives both the original value and the second language translation
+- The AI uses both sources to produce more accurate and natural translations
+- The second language file is **automatically excluded** from translation targets (won't be overwritten)
+- If a key exists in the primary source but not in the second input, a warning is printed and the key is translated from the primary source only
+
+**Example use case:**
+
+You have English source and a professionally translated German file:
+```json
+// en.json
+{"greeting": "Move, copy, share or delete multiple files at once"}
+
+// de.json (your high-quality German translation)
+{"greeting": "Verschiebe, kopiere, teile oder lösche mehrere Dateien gleichzeitig"}
+```
+
+When translating to French, the AI sees both:
+```json
+{"greeting": "Move, copy, share or delete multiple files at once", "greeting_de": "Verschiebe, kopiere, teile oder lösche mehrere Dateien gleichzeitig"}
+```
+
+This dual-source approach helps the AI understand nuance and context, producing better translations.
+
+**Combining with other flags:**
+
+```bash
+# Dual-language mode with language exclusions
+python json_translator.py en.json --second-input="de.json" --exclude="he,ko"
+
+# Works with recursive mode - same second input used for all directories
+python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --second-input="D:\translations\de.json"
+```
+
+**Works with ARB files too:**
+
+```bash
+python json_translator.py app_en.arb --second-input="app_de.arb"
 ```
 
 ### Recursive Translation
@@ -295,6 +344,40 @@ python json_translator.py ./lib/l10n/app_en.arb --apply-overrides
 ### JSON Attribute Remover Utility
 
 The `json_attribute_remover.py` utility removes specified attributes from JSON translation files. It supports two modes: **directory mode** and **file mode**, automatically detecting which mode to use based on the input path.
+
+#### Interactive Mode (New!)
+
+When called without an attributes file, the tool enters **interactive mode** with arrow-key navigation:
+
+```bash
+# Interactive mode - select attribute to remove visually
+python json_attribute_remover.py path/to/en.json
+
+# Or with a directory (defaults to scanning en.json)
+python json_attribute_remover.py path/to/locales/
+```
+
+**Features:**
+- Displays all attributes with their values from the source file
+- Navigate with ↑/↓ arrow keys
+- Press Enter to select, Esc/Ctrl+C to cancel
+- Shows confirmation prompt before removing
+- Nested keys displayed with dot notation (e.g., `settings.theme`)
+
+**Example output:**
+```
+? Select attribute to remove:
+> app_name: "My Application"
+  description: "A great app for productivity"
+  settings: "{...}"
+  settings.theme: "dark"
+  settings.language: "en"
+```
+
+**Requirements:**
+```bash
+pip install questionary
+```
 
 #### Directory Mode
 

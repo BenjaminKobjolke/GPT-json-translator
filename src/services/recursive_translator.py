@@ -21,7 +21,8 @@ class RecursiveTranslator:
         source_filename: str,
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]] = None,
-        use_cdata: bool = False
+        use_cdata: bool = False,
+        second_input_path: Optional[str] = None
     ) -> None:
         """
         Find directories with untranslated source files and translate them.
@@ -32,6 +33,7 @@ class RecursiveTranslator:
             config: Configuration dictionary
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
+            second_input_path: Optional path to second language file for dual-language mode
         """
         # Validate base directory
         if not os.path.exists(base_dir):
@@ -75,13 +77,23 @@ class RecursiveTranslator:
             print(f"  - {directory}")
         print()
 
+        # Load second input file if provided (used for all directories)
+        second_input_data = None
+        if second_input_path:
+            from src.cli.commands import _load_second_input
+            second_input_data = _load_second_input(second_input_path)
+            if second_input_data:
+                print(f"Using same second input for all directories: {second_input_path}")
+                print()
+
         # Process batch
         RecursiveTranslator._process_batch(
             dirs_to_process,
             source_filename,
             config,
             excluded_languages,
-            use_cdata
+            use_cdata,
+            second_input_data
         )
 
     @staticmethod
@@ -113,7 +125,8 @@ class RecursiveTranslator:
         source_filename: str,
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]],
-        use_cdata: bool = False
+        use_cdata: bool = False,
+        second_input_data: Optional[tuple] = None
     ) -> None:
         """
         Process a batch of directories for translation.
@@ -124,6 +137,7 @@ class RecursiveTranslator:
             config: Configuration dictionary
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
+            second_input_data: Optional tuple of (second_json, second_language_code) for dual-language mode
         """
         processed_count = 0
 
@@ -137,7 +151,8 @@ class RecursiveTranslator:
                     source_file_path,
                     config,
                     excluded_languages,
-                    use_cdata
+                    use_cdata,
+                    second_input_data
                 )
                 processed_count += 1
                 print()

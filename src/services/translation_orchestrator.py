@@ -67,12 +67,31 @@ class TranslationOrchestrator:
         print_translation_summary(lang_code, len(keys_for_translation))
 
         if keys_for_translation:
+            # Build dual-language content if second input is available
+            content_to_send = keys_for_translation
+            if translation_data.second_input_json:
+                augmented_content, missing_keys = translation_data.build_dual_language_content(
+                    keys_for_translation
+                )
+
+                # Warn about missing keys
+                if missing_keys:
+                    print(f"  Warning: {len(missing_keys)} key(s) missing in second input, "
+                          f"translating from primary source only:")
+                    for key in missing_keys[:5]:  # Show first 5
+                        print(f"    - {key}")
+                    if len(missing_keys) > 5:
+                        print(f"    ... and {len(missing_keys) - 5} more")
+
+                content_to_send = augmented_content
+
             # Perform translation
             translated_content = translation_service.translate(
                 target_language,
-                keys_for_translation,
+                content_to_send,
                 translation_data.global_hints,
-                translation_data.field_hints
+                translation_data.field_hints,
+                translation_data.second_language_code
             )
 
             # Create and return result
@@ -108,7 +127,8 @@ class TranslationOrchestrator:
         input_path: str,
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]] = None,
-        use_cdata: bool = False
+        use_cdata: bool = False,
+        second_input_data: Optional[tuple] = None
     ) -> None:
         """
         Process translation for a single source file.
@@ -118,6 +138,7 @@ class TranslationOrchestrator:
             config: Configuration dictionary from ConfigManager
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
+            second_input_data: Optional tuple of (second_json, second_language_code) for dual-language mode
         """
         # Analyze the input filename
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
@@ -151,6 +172,23 @@ class TranslationOrchestrator:
         target_languages = filter_excluded_languages(target_languages, excluded_languages)
         target_languages = filter_source_language(target_languages, source_language)
 
+        # Unpack second input data if provided
+        second_input_json = None
+        second_language_code = None
+        if second_input_data:
+            second_input_json, second_language_code = second_input_data
+            print(f"Using dual-language mode with second input: {second_language_code}")
+
+            # Automatically exclude the second language from translation targets
+            second_base = parse_language_code(second_language_code)
+            original_count = len(target_languages)
+            target_languages = [
+                lang for lang in target_languages
+                if parse_language_code(lang) != second_base
+            ]
+            if len(target_languages) < original_count:
+                print(f"Automatically excluded {second_language_code} from translation targets")
+
         # Create translation data
         translation_data = TranslationData(
             source_json=source_json,
@@ -158,7 +196,9 @@ class TranslationOrchestrator:
             input_path=input_path,
             file_type=file_type,
             filename_pattern=filename_pattern,
-            xml_source_root=xml_source_root
+            xml_source_root=xml_source_root,
+            second_input_json=second_input_json,
+            second_language_code=second_language_code
         )
 
         # Print hints summary

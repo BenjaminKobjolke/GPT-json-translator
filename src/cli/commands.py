@@ -3,13 +3,14 @@ Command handlers for the JSON Translator CLI.
 """
 import os
 import sys
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Tuple
 
 from src.config import ConfigManager
+from src.file_handler import FileHandler
 from src.services.translation_orchestrator import TranslationOrchestrator
 from src.services.override_service import OverrideService
 from src.services.recursive_translator import RecursiveTranslator
-from src.utils.path_utils import get_input_path
+from src.utils.path_utils import get_input_path, analyze_input_filename
 from src.cli.argument_parser import create_argument_parser
 
 
@@ -81,13 +82,17 @@ def _handle_recursive_translation(args, config, excluded_languages: Optional[Lis
     # Get base directory
     base_dir = _get_base_directory(args.input_path, config.get("source_path"))
 
+    # Get second input path if provided
+    second_input_path = getattr(args, 'second_input', None)
+
     # Execute recursive translation
     RecursiveTranslator.find_and_translate(
         base_dir,
         source_filename,
         config,
         excluded_languages,
-        use_cdata=args.use_cdata
+        use_cdata=args.use_cdata,
+        second_input_path=second_input_path
     )
 
 
@@ -103,9 +108,16 @@ def _handle_single_file_translation(args, config, excluded_languages: Optional[L
     # Get input path
     input_path = get_input_path(args.input_path, config["source_path"])
 
+    # Load second input if provided
+    second_input_data = _load_second_input(getattr(args, 'second_input', None))
+
     # Process the single file
     TranslationOrchestrator.process_single_file(
-        input_path, config, excluded_languages, use_cdata=args.use_cdata
+        input_path,
+        config,
+        excluded_languages,
+        use_cdata=args.use_cdata,
+        second_input_data=second_input_data
     )
 
     print("Translation process complete.")
@@ -144,3 +156,39 @@ def _get_base_directory(input_path: Optional[str], config_source_path: Optional[
         return os.path.dirname(config_source_path)
     else:
         return input("Enter the base directory to search: ")
+
+
+def _load_second_input(second_input_path: Optional[str]) -> Optional[Tuple[Dict[str, Any], str]]:
+    """
+    Load and validate the second input file for dual-language translation.
+
+    Args:
+        second_input_path: Path to the second language file
+
+    Returns:
+        Tuple of (second_input_json, second_language_code) or None if not provided
+    """
+    if not second_input_path:
+        return None
+
+    # Validate file exists
+    if not os.path.exists(second_input_path):
+        print(f"Error: Second input file not found at {second_input_path}")
+        sys.exit(1)
+
+    # Analyze the filename to extract language code
+    file_type, second_language, _ = analyze_input_filename(second_input_path)
+
+    if not second_language:
+        print(f"Error: Cannot determine language code from second input filename: {second_input_path}")
+        print("Expected format: 'de.json', 'fr.json', 'app_de.arb', etc.")
+        sys.exit(1)
+
+    # Load the file
+    try:
+        second_json = FileHandler.load_json_file(second_input_path)
+        print(f"Loaded second input: {second_input_path} (language: {second_language})")
+        return second_json, second_language
+    except Exception as e:
+        print(f"Error loading second input file: {str(e)}")
+        sys.exit(1)
