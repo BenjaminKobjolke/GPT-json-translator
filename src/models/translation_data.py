@@ -63,14 +63,13 @@ class TranslationData:
 
         for key, value in list(self.source_json.items()):
             if key.startswith('_hint_'):
-                # Check if it's a field-specific hint
-                if key != '_hint_' and not key.endswith('_'):
-                    # Extract field name: "_hint_short_description" -> "short_description"
+                if key.endswith('_'):
+                    # Global hint: _hint_, _hint_2_, _hint_3_, etc.
+                    global_hints[key] = value
+                else:
+                    # Field-specific hint: _hint_short_description
                     field_name = key[6:]  # Remove "_hint_" prefix
                     field_hints[field_name] = value
-                elif key == '_hint_':
-                    # Global hint
-                    global_hints[key] = value
             elif key.startswith('_') and key.endswith('_'):
                 # Other global hints (backward compatibility)
                 global_hints[key] = value
