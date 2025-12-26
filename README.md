@@ -13,6 +13,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON an
 -   Supports 40+ languages out of the box
 -   **Dual-language mode** - use two source languages for improved translation quality
 -   Recursive batch translation across directory hierarchies
+-   **Override languages via CLI** - use `--languages` to override settings.ini
 -   Exclude specific languages from translation via command-line flag
 -   Handles existing translations (only translates new or changed content)
 -   Supports translation overrides for specific terms
@@ -90,6 +91,36 @@ python json_translator.py path/to/source.json --exclude="he,ko,ar"
 ```bash
 # Translate to all languages except Hebrew and Korean
 python json_translator.py ./locales/en.json --exclude="he,ko"
+```
+
+### Specifying Target Languages
+
+You can override the `settings.ini` languages configuration using the `--languages` flag. This is useful when you want to translate to specific languages without modifying your configuration file:
+
+```bash
+# Translate to German only
+python json_translator.py path/to/source.json --languages="de-DE"
+
+# Translate to multiple specific languages
+python json_translator.py path/to/source.json --languages="de-DE,fr-FR,es-ES"
+```
+
+**Features:**
+- Accepts comma-separated language codes
+- Completely overrides the `settings.ini` languages setting
+- Works with both short codes (`de`) and full codes (`de-DE`)
+- Can be combined with `--exclude` (exclusion is applied after)
+
+**Combining with --exclude:**
+```bash
+# Start with 3 languages, then exclude French
+python json_translator.py source.json --languages="de-DE,fr-FR,es-ES" --exclude="fr"
+# Result: translates to de-DE and es-ES only
+```
+
+**Works with recursive mode:**
+```bash
+python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --languages="de-DE,fr-FR"
 ```
 
 ### Dual-Language Mode
@@ -547,13 +578,15 @@ You can provide translation hints to guide the AI translator. Hints are automati
 
 #### Global Hints
 
-Global hints apply to all fields in your translation. Use keys that start and end with an underscore (e.g., `_hint_`):
+Global hints apply to all fields in your translation. Use keys that start and end with an underscore (e.g., `_hint_`). You can use multiple global hints by numbering them:
 
 ```json
 {
-    "_hint_": "If the language has a formal and an informal way, use the informal way.",
-    "title": "Welcome to SUMMERA AI",
-    "description": "SUMMERA AI helps you with daily tasks"
+    "_hint_": "All texts are for a file explorer app. Translations should fit this context.",
+    "_hint_2_": "Media File Explorer is the app name and should not be translated.",
+    "_hint_3_": "If the language has a formal and informal way, use the informal way.",
+    "title": "Welcome to Media File Explorer",
+    "description": "Manage your files with ease"
 }
 ```
 
@@ -571,14 +604,21 @@ Field-specific hints provide targeted guidance for individual fields. Use the pa
 }
 ```
 
-When translating, the AI receives both types of hints:
+When translating, the AI receives all hints:
 ```
 Translation hints:
-- SUMMERA AI is a proper name and should not be translated
+- All texts are for a file explorer app. Translations should fit this context.
+- Media File Explorer is the app name and should not be translated.
+- If the language has a formal and informal way, use the informal way.
 
 Field-specific hints:
 - short_description: Maximum length is 60 characters, shorten if too long by not adhering 100% to the original language
 ```
+
+**Supported global hint patterns:**
+- `_hint_` - Primary hint
+- `_hint_2_`, `_hint_3_`, etc. - Additional numbered hints
+- Any key matching `_hint_*_` pattern (starts with `_hint_` and ends with `_`)
 
 **Use cases for hints:**
 -   Proper names that should remain untranslated
