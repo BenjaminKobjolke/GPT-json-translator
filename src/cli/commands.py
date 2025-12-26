@@ -41,13 +41,16 @@ def run_translation_command() -> None:
     # Parse excluded languages if provided
     excluded_languages = _parse_excluded_languages(args.exclude_languages)
 
+    # Parse override languages if provided
+    override_languages = _parse_languages(args.languages)
+
     # Route to recursive translator if --translate-recursive is set
     if args.translate_recursive:
-        _handle_recursive_translation(args, config, excluded_languages)
+        _handle_recursive_translation(args, config, excluded_languages, override_languages)
         return
 
     # Handle regular single-file translation
-    _handle_single_file_translation(args, config, excluded_languages)
+    _handle_single_file_translation(args, config, excluded_languages, override_languages)
 
 
 def _handle_apply_overrides(args) -> None:
@@ -68,7 +71,12 @@ def _handle_apply_overrides(args) -> None:
     OverrideService.apply_overrides(input_path, use_cdata=args.use_cdata)
 
 
-def _handle_recursive_translation(args, config, excluded_languages: Optional[List[str]]) -> None:
+def _handle_recursive_translation(
+    args,
+    config,
+    excluded_languages: Optional[List[str]],
+    override_languages: Optional[List[str]] = None
+) -> None:
     """
     Handle the --translate-recursive command.
 
@@ -76,6 +84,7 @@ def _handle_recursive_translation(args, config, excluded_languages: Optional[Lis
         args: Parsed command-line arguments
         config: Configuration dictionary
         excluded_languages: Optional list of excluded language codes
+        override_languages: Optional list of language codes to override config
     """
     source_filename = args.translate_recursive
 
@@ -92,11 +101,17 @@ def _handle_recursive_translation(args, config, excluded_languages: Optional[Lis
         config,
         excluded_languages,
         use_cdata=args.use_cdata,
-        second_input_path=second_input_path
+        second_input_path=second_input_path,
+        override_languages=override_languages
     )
 
 
-def _handle_single_file_translation(args, config, excluded_languages: Optional[List[str]]) -> None:
+def _handle_single_file_translation(
+    args,
+    config,
+    excluded_languages: Optional[List[str]],
+    override_languages: Optional[List[str]] = None
+) -> None:
     """
     Handle regular single-file translation.
 
@@ -104,6 +119,7 @@ def _handle_single_file_translation(args, config, excluded_languages: Optional[L
         args: Parsed command-line arguments
         config: Configuration dictionary
         excluded_languages: Optional list of excluded language codes
+        override_languages: Optional list of language codes to override config
     """
     # Get input path
     input_path = get_input_path(args.input_path, config["source_path"])
@@ -117,7 +133,8 @@ def _handle_single_file_translation(args, config, excluded_languages: Optional[L
         config,
         excluded_languages,
         use_cdata=args.use_cdata,
-        second_input_data=second_input_data
+        second_input_data=second_input_data,
+        override_languages=override_languages
     )
 
     print("Translation process complete.")
@@ -137,6 +154,22 @@ def _parse_excluded_languages(exclude_arg: Optional[str]) -> Optional[List[str]]
         return None
 
     return [lang.strip() for lang in exclude_arg.split(',')]
+
+
+def _parse_languages(languages_arg: Optional[str]) -> Optional[List[str]]:
+    """
+    Parse the languages argument (override for settings.ini).
+
+    Args:
+        languages_arg: Raw languages argument string
+
+    Returns:
+        List of language codes, or None
+    """
+    if not languages_arg:
+        return None
+
+    return [lang.strip() for lang in languages_arg.split(',')]
 
 
 def _get_base_directory(input_path: Optional[str], config_source_path: Optional[str]) -> str:

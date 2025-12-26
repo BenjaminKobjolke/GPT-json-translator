@@ -22,7 +22,8 @@ class RecursiveTranslator:
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]] = None,
         use_cdata: bool = False,
-        second_input_path: Optional[str] = None
+        second_input_path: Optional[str] = None,
+        override_languages: Optional[List[str]] = None
     ) -> None:
         """
         Find directories with untranslated source files and translate them.
@@ -34,6 +35,7 @@ class RecursiveTranslator:
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
             second_input_path: Optional path to second language file for dual-language mode
+            override_languages: Optional list of language codes to override config languages
         """
         # Validate base directory
         if not os.path.exists(base_dir):
@@ -93,7 +95,8 @@ class RecursiveTranslator:
             config,
             excluded_languages,
             use_cdata,
-            second_input_data
+            second_input_data,
+            override_languages
         )
 
     @staticmethod
@@ -126,7 +129,8 @@ class RecursiveTranslator:
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]],
         use_cdata: bool = False,
-        second_input_data: Optional[tuple] = None
+        second_input_data: Optional[tuple] = None,
+        override_languages: Optional[List[str]] = None
     ) -> None:
         """
         Process a batch of directories for translation.
@@ -138,6 +142,7 @@ class RecursiveTranslator:
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
             second_input_data: Optional tuple of (second_json, second_language_code) for dual-language mode
+            override_languages: Optional list of language codes to override config languages
         """
         processed_count = 0
 
@@ -152,7 +157,8 @@ class RecursiveTranslator:
                     config,
                     excluded_languages,
                     use_cdata,
-                    second_input_data
+                    second_input_data,
+                    override_languages
                 )
                 processed_count += 1
                 print()

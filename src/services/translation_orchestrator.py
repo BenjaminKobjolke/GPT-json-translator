@@ -128,7 +128,8 @@ class TranslationOrchestrator:
         config: Dict[str, Any],
         excluded_languages: Optional[List[str]] = None,
         use_cdata: bool = False,
-        second_input_data: Optional[tuple] = None
+        second_input_data: Optional[tuple] = None,
+        override_languages: Optional[List[str]] = None
     ) -> None:
         """
         Process translation for a single source file.
@@ -139,6 +140,7 @@ class TranslationOrchestrator:
             excluded_languages: Optional list of language codes to exclude
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
             second_input_data: Optional tuple of (second_json, second_language_code) for dual-language mode
+            override_languages: Optional list of language codes to override config languages
         """
         # Analyze the input filename
         file_type, source_language, filename_pattern = analyze_input_filename(input_path)
@@ -167,8 +169,14 @@ class TranslationOrchestrator:
             print(f"[ERROR] Error: {str(e)}")
             return
 
+        # Use override languages if provided, otherwise use config languages
+        if override_languages:
+            target_languages = override_languages
+            print(f"Using command-line languages override: {', '.join(target_languages)}")
+        else:
+            target_languages = config["languages"]
+
         # Filter languages based on exclusions
-        target_languages = config["languages"]
         target_languages = filter_excluded_languages(target_languages, excluded_languages)
         target_languages = filter_source_language(target_languages, source_language)
 

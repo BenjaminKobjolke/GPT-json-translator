@@ -27,6 +27,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '--languages',
+        help='Comma-separated list of language codes to translate to (overrides settings.ini)'
+    )
+
+    parser.add_argument(
         '--apply-overrides',
         action='store_true',
         help='Apply override files only, without performing translation'
