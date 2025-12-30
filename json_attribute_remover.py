@@ -438,6 +438,45 @@ def build_attributes_dict_from_path(attribute_path: str) -> Dict[str, Any]:
     return result
 
 
+def deep_merge_dicts(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Merge two nested dicts, combining nested structures.
+
+    Args:
+        base: Base dictionary
+        overlay: Dictionary to merge on top
+
+    Returns:
+        Merged dictionary with nested structures combined
+    """
+    result = base.copy()
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge_dicts(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def convert_list_to_nested_dict(attributes: List[str]) -> Dict[str, Any]:
+    """
+    Convert list of dot-notation paths to nested dict structure.
+
+    Supports both simple keys ("title") and dot-notation paths ("queue.clearAll").
+
+    Args:
+        attributes: List of attribute paths
+
+    Returns:
+        Nested dict structure for removal
+    """
+    result: Dict[str, Any] = {}
+    for attr in attributes:
+        attr_dict = build_attributes_dict_from_path(attr)
+        result = deep_merge_dicts(result, attr_dict)
+    return result
+
+
 def remove_attributes_from_file(
     file_path: Path,
     attributes_to_remove: Any
@@ -446,12 +485,12 @@ def remove_attributes_from_file(
     Remove specified attributes from a single JSON file.
 
     Supports two formats:
-    1. List format (legacy): ["key1", "key2"] - removes top-level keys only
-    2. Dict format (nested): {"key1": true, "nested": {"key2": true}} - supports nested removal
+    1. List format: ["key1", "nested.key2"] - supports dot-notation for nested keys
+    2. Dict format (nested): {"key1": true, "nested": {"key2": true}} - explicit nested structure
 
     Args:
         file_path: Path to the JSON file
-        attributes_to_remove: List of attributes or dict with nested structure
+        attributes_to_remove: List of attributes (with dot-notation) or dict with nested structure
 
     Returns:
         Number of attributes removed
@@ -471,16 +510,12 @@ def remove_attributes_from_file(
 
     removed_count = 0
 
-    # Handle legacy list format (top-level keys only)
+    # Convert list format to dict format for unified processing
     if isinstance(attributes_to_remove, list):
-        for attribute in attributes_to_remove:
-            if attribute in data:
-                print(f"  Removing '{attribute}' from {file_path.name}")
-                del data[attribute]
-                removed_count += 1
+        attributes_to_remove = convert_list_to_nested_dict(attributes_to_remove)
 
-    # Handle new dict format (nested structure)
-    elif isinstance(attributes_to_remove, dict):
+    # Process using recursive removal (handles nested structures)
+    if isinstance(attributes_to_remove, dict):
         removed_count = remove_attributes_recursive(
             data, attributes_to_remove, "", file_path.name
         )
