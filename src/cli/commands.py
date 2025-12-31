@@ -26,6 +26,11 @@ def run_translation_command() -> None:
     parser = create_argument_parser()
     args = parser.parse_args()
 
+    # Route to HTML extraction if --extract-html is set
+    if args.extract_html:
+        _handle_html_extraction(args)
+        return
+
     # Route to override service if --apply-overrides flag is set
     if args.apply_overrides:
         _handle_apply_overrides(args)
@@ -225,3 +230,73 @@ def _load_second_input(second_input_path: Optional[str]) -> Optional[Tuple[Dict[
     except Exception as e:
         print(f"Error loading second input file: {str(e)}")
         sys.exit(1)
+
+
+def _handle_html_extraction(args) -> None:
+    """
+    Handle the --extract-html command.
+
+    Args:
+        args: Parsed command-line arguments
+    """
+    from src.services.html_extractor import HtmlExtractor
+    from src.models.extraction_data import HtmlExtractionConfig, ExtractionResult
+
+    # Validate required arguments
+    if not args.output:
+        print("Error: --output is required with --extract-html")
+        sys.exit(1)
+
+    # Build configuration
+    config = HtmlExtractionConfig(
+        input_pattern=args.extract_html,
+        output_path=args.output,
+        translation_function=getattr(args, 'translation_function', 't'),
+        create_backup=not getattr(args, 'no_backup', False),
+        dry_run=getattr(args, 'dry_run', False)
+    )
+
+    # Execute extraction
+    result = HtmlExtractor.extract_and_replace(config)
+
+    # Print summary
+    _print_extraction_summary(result, config.dry_run)
+
+
+def _print_extraction_summary(result, dry_run: bool = False) -> None:
+    """
+    Print a summary of the extraction operation.
+
+    Args:
+        result: ExtractionResult from the extraction operation
+        dry_run: Whether this was a dry run
+    """
+    from src.models.extraction_data import ExtractionResult
+
+    print("\n" + "=" * 40)
+    if dry_run:
+        print("HTML/Twig Extraction Preview (DRY RUN)")
+    else:
+        print("HTML/Twig Extraction Complete")
+    print("=" * 40)
+
+    print(f"Files processed:      {result.files_processed}")
+    print(f"Strings extracted:    {result.total_strings_extracted}")
+    print(f"  - Added to JSON:    {result.strings_added}")
+    print(f"  - Skipped (existing): {result.strings_skipped}")
+
+    if not dry_run:
+        print(f"Files modified:       {result.files_modified}")
+
+    print(f"JSON output:          {result.json_output_path}")
+
+    if result.file_results:
+        print("\nProcessed files:")
+        for file_result in result.file_results:
+            count = len(file_result.extracted_items)
+            print(f"  - {file_result.file_path.name} ({count} strings)")
+
+    if result.errors:
+        print("\nErrors:")
+        for error in result.errors:
+            print(f"  - {error}")

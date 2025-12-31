@@ -56,4 +56,37 @@ def create_argument_parser() -> argparse.ArgumentParser:
              'The AI uses both sources for better translations. This file will NOT be overwritten.'
     )
 
+    # HTML/Twig extraction arguments
+    parser.add_argument(
+        '--extract-html',
+        metavar='PATH',
+        help='Extract translatable text from HTML/Twig file(s). Supports glob patterns (e.g., "templates/*.twig")'
+    )
+
+    parser.add_argument(
+        '--output', '-o',
+        metavar='JSON_PATH',
+        help='Output JSON file path for extracted translations (required with --extract-html)'
+    )
+
+    parser.add_argument(
+        '--translation-function',
+        type=str,
+        default='t',
+        metavar='FUNC',
+        help='Name of the Twig translation function (default: "t")'
+    )
+
+    parser.add_argument(
+        '--no-backup',
+        action='store_true',
+        help='Skip creating .bak backup files before modifying Twig files'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview changes without modifying files'
+    )
+
     return parser
