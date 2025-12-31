@@ -20,6 +20,7 @@ GPT JSON Translator is a Python script that automates the translation of JSON an
 -   Provides global and field-specific translation hints
 -   Supports standard JSON, Flutter ARB, and Android XML file formats
 -   Android XML: Automatically excludes `translatable="false"` elements
+-   **HTML/Twig extraction** - extract translatable text from templates and generate JSON
 
 ## Requirements
 
@@ -371,6 +372,94 @@ python json_translator.py ./lib/l10n/app_en.arb --apply-overrides
 - Initialize new translation files with predefined values
 - Apply terminology changes without re-translating
 - Sync override changes to all language files quickly
+
+### HTML/Twig Text Extraction
+
+The `--extract-html` flag enables extraction of translatable text from HTML or Twig template files. This is useful when you have existing templates with hardcoded text that needs to be internationalized.
+
+```bash
+python json_translator.py --extract-html "path/to/template.twig" --output "path/to/en.json"
+```
+
+**How it works:**
+- Scans HTML/Twig files for translatable text content and attributes
+- Generates translation keys based on filename and element type (e.g., `overview.h2_1`, `overview.p_1`)
+- Creates or updates a JSON translation file with extracted strings
+- Replaces original text in template files with `{{ t('key') }}` function calls
+- Creates `.bak` backup files before modifying templates
+
+**Extracted elements:**
+- Text content from: `h1-h6`, `p`, `span`, `button`, `label`, `a`, `li`, `th`, `td`, `figcaption`, `legend`, `option`
+- Attributes: `alt`, `title`, `placeholder`, `aria-label`, `aria-description`
+
+**Command-line options:**
+
+| Flag | Description |
+|------|-------------|
+| `--extract-html PATH` | Path to HTML/Twig file(s). Supports glob patterns (e.g., `"templates/*.twig"`) |
+| `--output PATH` / `-o` | Output JSON file path (required) |
+| `--translation-function FUNC` | Name of the Twig translation function (default: `t`) |
+| `--no-backup` | Skip creating `.bak` backup files |
+| `--dry-run` | Preview changes without modifying any files |
+
+**Examples:**
+
+```bash
+# Extract from a single file
+python json_translator.py --extract-html "templates/overview.twig" --output "lang/en.json"
+
+# Extract from multiple files using glob pattern
+python json_translator.py --extract-html "templates/*.twig" --output "lang/en.json"
+
+# Preview extraction without making changes
+python json_translator.py --extract-html "templates/overview.twig" --output "lang/en.json" --dry-run
+
+# Use a custom translation function name
+python json_translator.py --extract-html "templates/overview.twig" --output "lang/en.json" --translation-function trans
+
+# Skip backup file creation
+python json_translator.py --extract-html "templates/overview.twig" --output "lang/en.json" --no-backup
+```
+
+**Example transformation:**
+
+Before (`overview.twig`):
+```html
+<section>
+    <h2>Overview</h2>
+    <p>Welcome to our application.</p>
+    <p><b>Bold text</b> with emphasis.</p>
+    <img src="image.png" alt="App screenshot">
+</section>
+```
+
+After extraction (`overview.twig`):
+```html
+<section>
+    <h2>{{ t('overview.h2_1') }}</h2>
+    <p>{{ t('overview.p_1') }}</p>
+    <p>{{ t('overview.p_2')|raw }}</p>
+    <img src="image.png" alt="{{ t('overview.alt_1') }}">
+</section>
+```
+
+Generated JSON (`en.json`):
+```json
+{
+    "overview": {
+        "h2_1": "Overview",
+        "p_1": "Welcome to our application.",
+        "p_2": "<b>Bold text</b> with emphasis.",
+        "alt_1": "App screenshot"
+    }
+}
+```
+
+**Features:**
+- **Inline HTML preserved**: Content with inline tags (`<b>`, `<i>`, `<br/>`, etc.) is preserved and the `|raw` filter is automatically added
+- **Already-translated content skipped**: Text containing `{{ t('...`) patterns is not extracted
+- **Incremental extraction**: Merges with existing JSON files without overwriting existing keys
+- **Backup files**: Creates `.bak` files before modifying templates (disable with `--no-backup`)
 
 ### JSON Attribute Remover Utility
 
