@@ -42,6 +42,10 @@ python json_translator.py "path/to/base/directory" --translate-recursive="en.jso
 # Combine with exclusions
 python json_translator.py "D:\release-notes\" --translate-recursive="en.json" --exclude="he,ko"
 
+# Force mode: process ALL directories (even those with existing translations)
+# Useful for incrementally adding new keys to already-translated directories
+python json_translator.py "path/to/base/directory" --translate-recursive="en.json" --force
+
 # Dual-language mode: use two source languages for better translations
 # The AI receives both English and German to produce better translations for other languages
 python json_translator.py path/to/en.json --second-input="path/to/de.json"

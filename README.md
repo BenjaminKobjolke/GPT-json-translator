@@ -221,13 +221,27 @@ This will:
 - Supports all translation features (hints, overrides, language exclusions)
 - Shows progress for each directory being processed
 
+**Force mode:**
+
+By default, recursive mode skips directories that already have translation files. Use `--force` to process **all** directories containing the source file, even those with existing translations. This is useful for incrementally adding new keys across all directories:
+
+```bash
+# Process all directories, even those with existing translations
+python json_translator.py "D:\project\release-notes\" --translate-recursive="en.json" --force
+```
+
+Since the translator only sends missing keys to the API, this is safe and efficient — directories with complete translations will simply be skipped with no API calls.
+
 **Combining with other flags:**
 
-You can combine recursive mode with language exclusions:
+You can combine recursive mode with language exclusions and force mode:
 
 ```bash
 # Recursively translate all subdirectories, excluding Hebrew and Korean
 python json_translator.py "D:\project\release-notes\" --translate-recursive="en.json" --exclude="he,ko"
+
+# Force mode with exclusions
+python json_translator.py "D:\project\release-notes\" --translate-recursive="en.json" --force --exclude="he,ko"
 ```
 
 **Works with ARB files too:**
