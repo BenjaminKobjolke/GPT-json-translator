@@ -44,6 +44,13 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '--force',
+        action='store_true',
+        help='With --translate-recursive: process ALL directories containing the source file, '
+             'not just those without existing translations.'
+    )
+
+    parser.add_argument(
         '--use-cdata',
         action='store_true',
         help='For XML files: wrap string values in CDATA sections instead of escaping quotes'

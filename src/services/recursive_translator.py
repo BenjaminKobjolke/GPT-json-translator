@@ -23,7 +23,8 @@ class RecursiveTranslator:
         excluded_languages: Optional[List[str]] = None,
         use_cdata: bool = False,
         second_input_path: Optional[str] = None,
-        override_languages: Optional[List[str]] = None
+        override_languages: Optional[List[str]] = None,
+        force: bool = False
     ) -> None:
         """
         Find directories with untranslated source files and translate them.
@@ -36,6 +37,7 @@ class RecursiveTranslator:
             use_cdata: For XML files, wrap strings in CDATA sections (default: False)
             second_input_path: Optional path to second language file for dual-language mode
             override_languages: Optional list of language codes to override config languages
+            force: If True, process all directories regardless of existing translations
         """
         # Validate base directory
         if not os.path.exists(base_dir):
@@ -63,21 +65,29 @@ class RecursiveTranslator:
         dummy_path = os.path.join(base_dir, source_filename)
         file_type, _, _ = analyze_input_filename(dummy_path)
 
-        # Filter directories that have only the source file (no translations)
-        dirs_to_process = RecursiveTranslator._filter_directories(
-            matching_dirs,
-            source_filename,
-            file_type
-        )
+        if force:
+            # Force mode: process all directories containing the source file
+            dirs_to_process = matching_dirs
+            print(f"Force mode: processing all {len(dirs_to_process)} director(ies)...")
+            for directory in dirs_to_process:
+                print(f"  - {directory}")
+            print()
+        else:
+            # Filter directories that have only the source file (no translations)
+            dirs_to_process = RecursiveTranslator._filter_directories(
+                matching_dirs,
+                source_filename,
+                file_type
+            )
 
-        if not dirs_to_process:
-            print(f"All directories already have translations. Nothing to do.")
-            return
+            if not dirs_to_process:
+                print(f"All directories already have translations. Nothing to do.")
+                return
 
-        print(f"Found {len(dirs_to_process)} director(ies) without translations:")
-        for directory in dirs_to_process:
-            print(f"  - {directory}")
-        print()
+            print(f"Found {len(dirs_to_process)} director(ies) without translations:")
+            for directory in dirs_to_process:
+                print(f"  - {directory}")
+            print()
 
         # Load second input file if provided (used for all directories)
         second_input_data = None

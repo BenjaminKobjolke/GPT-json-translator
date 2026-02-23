@@ -107,7 +107,8 @@ def _handle_recursive_translation(
         excluded_languages,
         use_cdata=args.use_cdata,
         second_input_path=second_input_path,
-        override_languages=override_languages
+        override_languages=override_languages,
+        force=args.force
     )
 
 
